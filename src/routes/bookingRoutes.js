@@ -6,10 +6,10 @@ import {
   getMyBookings,
   updateBookingStatus,
   addTrackingUpdate,
-  addBookingReview,
+  rateBooking,
   getBookingStats
 } from '../controllers/bookingController.js';
-import {restrictTo , protect } from '../middleware/authMiddleware.js';
+import {restrictTo , protect } from '../controllers/authController.js';
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.route('/:id')
 
 router.patch('/:id/status', updateBookingStatus);
 router.post('/:id/tracking', restrictTo('professional', 'admin'), addTrackingUpdate);
-router.post('/:id/review', restrictTo('customer'), addBookingReview);
+router.post('/:id/rate', restrictTo('customer'), rateBooking);
 
 // Stats route - accessible to professionals and admins
 router.get('/stats', restrictTo('professional', 'admin'), getBookingStats);

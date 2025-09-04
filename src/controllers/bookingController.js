@@ -13,39 +13,62 @@ export const createBooking = asyncHandler(async (req, res, next) => {
   // Add customer ID from authenticated user
   req.body.customer = req.user.id;
 
-  // Check if professional exists and is available
-  const professional = await User.findById(req.body.professional);
-  if (!professional || professional.role !== 'professional') {
-    return next(new AppError('No professional found with that ID', 404));
-  }
-
-  if (!professional.isAvailable) {
-    return next(new AppError('This professional is currently unavailable', 400));
-  }
-
   // Check if service exists
   const service = await Service.findById(req.body.service);
   if (!service) {
     return next(new AppError('No service found with that ID', 404));
   }
 
+  // If professional is specified, check if they exist and are available
+  if (req.body.professional) {
+    const professional = await User.findById(req.body.professional);
+    if (!professional || professional.role !== 'professional') {
+      return next(new AppError('No professional found with that ID', 404));
+    }
+
+    if (!professional.isAvailable) {
+      return next(new AppError('This professional is currently unavailable', 400));
+    }
+  }
+
+  // Set price and total amount from service if not provided
+  if (!req.body.price) {
+    req.body.price = service.price;
+  }
+  
+  if (!req.body.totalAmount) {
+    req.body.totalAmount = service.price;
+  }
+
+  // Add initial tracking update
+  req.body.trackingUpdates = [{
+    status: 'pending',
+    message: 'Booking created and waiting for confirmation',
+    updatedBy: req.user.id
+  }];
+
   // Create booking
   const newBooking = await Booking.create(req.body);
 
-  // Create notification for professional
-  await Notification.create({
-    recipient: req.body.professional,
-    title: 'New Booking Request',
-    message: `You have a new booking request for ${service.name}`,
-    type: 'booking_request',
-    data: { bookingId: newBooking._id }
-  });
+  // Populate customer and service details for the response
+  const populatedBooking = await Booking.findById(newBooking._id)
+    .populate('customer', 'name phone profileImage')
+    .populate('service', 'title price duration image');
+
+  // Create notification for professional if assigned
+  if (req.body.professional) {
+    await Notification.create({
+      recipient: req.body.professional,
+      title: 'New Booking Request',
+      message: `You have a new booking request for ${service.title}`,
+      type: 'booking_request',
+      data: { bookingId: newBooking._id }
+    });
+  }
 
   res.status(201).json({
     status: 'success',
-    data: {
-      booking: newBooking
-    }
+    booking: populatedBooking
   });
 });
 
@@ -71,9 +94,10 @@ export const getAllBookings = asyncHandler(async (req, res, next) => {
  */
 export const getBooking = asyncHandler(async (req, res, next) => {
   const booking = await Booking.findById(req.params.id)
-    .populate('customer', 'name phone')
-    .populate('professional', 'name phone rating')
-    .populate('service', 'name price duration');
+    .populate('customer', 'name phone profileImage')
+    .populate('professional', 'name phone rating profileImage experience specialization')
+    .populate('service', 'title price duration image description category vehicleType')
+    .populate('trackingUpdates.updatedBy', 'name role');
 
   if (!booking) {
     return next(new AppError('No booking found with that ID', 404));
@@ -83,16 +107,14 @@ export const getBooking = asyncHandler(async (req, res, next) => {
   if (
     req.user.role !== 'admin' &&
     booking.customer._id.toString() !== req.user.id &&
-    booking.professional._id.toString() !== req.user.id
+    (booking.professional && booking.professional._id.toString() !== req.user.id)
   ) {
     return next(new AppError('You are not authorized to view this booking', 403));
   }
 
   res.status(200).json({
     status: 'success',
-    data: {
-      booking
-    }
+    booking
   });
 });
 
@@ -112,37 +134,69 @@ export const getMyBookings = asyncHandler(async (req, res, next) => {
 
   // Apply status filter if provided
   if (req.query.status) {
-    filter.status = req.query.status;
+    // Handle multiple statuses
+    if (req.query.status.includes(',')) {
+      const statuses = req.query.status.split(',');
+      filter.status = { $in: statuses };
+    } else {
+      filter.status = req.query.status;
+    }
   }
 
+  // Apply date filter if provided
+  if (req.query.startDate && req.query.endDate) {
+    filter.scheduledDate = {
+      $gte: new Date(req.query.startDate),
+      $lte: new Date(req.query.endDate)
+    };
+  } else if (req.query.startDate) {
+    filter.scheduledDate = { $gte: new Date(req.query.startDate) };
+  } else if (req.query.endDate) {
+    filter.scheduledDate = { $lte: new Date(req.query.endDate) };
+  }
+
+  // Pagination
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  // Get total count for pagination info
+  const totalCount = await Booking.countDocuments(filter);
+
   const bookings = await Booking.find(filter)
-    .populate('customer', 'name phone')
-    .populate('professional', 'name phone rating')
-    .populate('service', 'name price duration')
-    .sort({ scheduledDate: -1 });
+    .populate('customer', 'name phone profileImage')
+    .populate('professional', 'name phone rating profileImage')
+    .populate('service', 'title price duration image')
+    .sort({ scheduledDate: -1, createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
 
   res.status(200).json({
     status: 'success',
     results: bookings.length,
-    data: {
-      bookings
-    }
-  });
+    totalCount,
+    currentPage: page,
+    totalPages: Math.ceil(totalCount / limit),
+    bookings
+  }
+  );
 });
+
 
 /**
  * Update booking status
  * @route PATCH /api/bookings/:id/status
  */
 export const updateBookingStatus = asyncHandler(async (req, res, next) => {
-  const { status } = req.body;
+  const { status, message } = req.body;
   const validStatuses = [
     'pending',
     'confirmed',
-    'in_progress',
+    'assigned',
+    'in-progress',
     'completed',
     'cancelled',
-    'rescheduled'
+    'rejected'
   ];
 
   if (!status || !validStatuses.includes(status)) {
@@ -159,15 +213,15 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
   if (req.user.role !== 'admin') {
     // Professionals can confirm, start, or complete bookings
     if (
-      ['confirmed', 'in_progress', 'completed'].includes(status) &&
-      booking.professional.toString() !== req.user.id
+      ['confirmed', 'assigned', 'in-progress', 'completed'].includes(status) &&
+      booking.professional && booking.professional.toString() !== req.user.id
     ) {
       return next(new AppError('You are not authorized to update this booking', 403));
     }
 
-    // Customers can cancel or request reschedule
+    // Customers can cancel bookings
     if (
-      ['cancelled', 'rescheduled'].includes(status) &&
+      ['cancelled'].includes(status) &&
       booking.customer.toString() !== req.user.id
     ) {
       return next(new AppError('You are not authorized to update this booking', 403));
@@ -177,29 +231,44 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
   // Update booking status
   booking.status = status;
   
+  // Create a tracking update
+  const trackingUpdate = {
+    status,
+    message: message || `Booking status updated to ${status}`,
+    updatedBy: req.user.id,
+    timestamp: Date.now()
+  };
+  
+  // Add tracking update to the booking
+  booking.trackingUpdates.push(trackingUpdate);
+  
   // Add cancellation details if applicable
   if (status === 'cancelled' && req.body.cancellationReason) {
-    booking.cancellation = {
-      reason: req.body.cancellationReason,
-      cancelledBy: req.user.role,
-      cancelledAt: Date.now()
-    };
+    trackingUpdate.message = req.body.cancellationReason;
   }
   
-  // Add rescheduling details if applicable
-  if (status === 'rescheduled' && req.body.rescheduleDate) {
-    booking.rescheduling = {
-      oldDate: booking.scheduledDate,
-      oldTime: booking.scheduledTime,
-      requestedBy: req.user.role,
-      requestedAt: Date.now()
-    };
+  // Handle rescheduling if new date/time provided
+  if (req.body.rescheduleDate) {
+    booking.scheduledDate = new Date(req.body.rescheduleDate);
+    if (req.body.rescheduleTime) {
+      booking.scheduledTime = req.body.rescheduleTime;
+    }
     
-    booking.scheduledDate = req.body.rescheduleDate;
-    booking.scheduledTime = req.body.rescheduleTime || booking.scheduledTime;
+    // Add rescheduling info to tracking update if not already set
+    if (!message) {
+      trackingUpdate.message = `Booking rescheduled to ${req.body.rescheduleDate} ${req.body.rescheduleTime || booking.scheduledTime}`;
+    }
   }
 
+  // Save the booking
   await booking.save();
+  
+  // Fetch the updated booking with populated fields for response
+  const updatedBooking = await Booking.findById(booking._id)
+    .populate('customer', 'name phone profileImage')
+    .populate('professional', 'name phone rating profileImage experience specialization')
+    .populate('service', 'title price duration image description category vehicleType')
+    .populate('trackingUpdates.updatedBy', 'name role');
 
   // Create notification for the other party
   const recipientId = req.user.role === 'customer' 
@@ -214,7 +283,12 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
       notificationMessage = 'Your booking has been confirmed by the professional';
       notificationType = 'booking_confirmed';
       break;
-    case 'in_progress':
+    case 'assigned':
+      notificationTitle = 'Professional Assigned';
+      notificationMessage = 'A professional has been assigned to your booking';
+      notificationType = 'professional_assigned';
+      break;
+    case 'in-progress':
       notificationTitle = 'Service Started';
       notificationMessage = 'Your service has been started by the professional';
       notificationType = 'service_started';
@@ -226,17 +300,17 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
       break;
     case 'cancelled':
       notificationTitle = 'Booking Cancelled';
-      notificationMessage = `Booking has been cancelled by ${req.user.role}`;
+      notificationMessage = message || `Booking has been cancelled by ${req.user.role}`;
       notificationType = 'booking_cancelled';
       break;
-    case 'rescheduled':
-      notificationTitle = 'Booking Rescheduled';
-      notificationMessage = `Booking has been rescheduled by ${req.user.role}`;
-      notificationType = 'booking_rescheduled';
+    case 'rejected':
+      notificationTitle = 'Booking Rejected';
+      notificationMessage = message || 'Your booking request has been rejected';
+      notificationType = 'booking_rejected';
       break;
     default:
       notificationTitle = 'Booking Update';
-      notificationMessage = `Your booking status has been updated to ${status}`;
+      notificationMessage = message || `Your booking status has been updated to ${status}`;
       notificationType = 'booking_update';
   }
 
@@ -251,7 +325,90 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     data: {
-      booking
+      booking: updatedBooking
+    }
+  });
+});
+
+/**
+ * Rate a completed booking
+ * @route POST /api/bookings/:id/rate
+ */
+export const rateBooking = asyncHandler(async (req, res, next) => {
+  const { score, review } = req.body;
+  
+  if (!score || score < 1 || score > 5) {
+    return next(new AppError('Please provide a valid rating score between 1 and 5', 400));
+  }
+  
+  const booking = await Booking.findById(req.params.id);
+  
+  if (!booking) {
+    return next(new AppError('No booking found with that ID', 404));
+  }
+  
+  // Only customers who booked the service can rate it
+  if (booking.customer.toString() !== req.user.id) {
+    return next(new AppError('You are not authorized to rate this booking', 403));
+  }
+  
+  // Check if booking is completed
+  if (booking.status !== 'completed') {
+    return next(new AppError('You can only rate completed bookings', 400));
+  }
+  
+  // Add rating
+  booking.rating = {
+    score,
+    review: review || '',
+    createdAt: Date.now()
+  };
+  
+  await booking.save();
+  
+  // Update professional's average rating
+  if (booking.professional) {
+    const professional = await User.findById(booking.professional);
+    
+    if (professional) {
+      // Get all completed bookings with ratings for this professional
+      const completedBookings = await Booking.find({
+        professional: booking.professional,
+        status: 'completed',
+        'rating.score': { $exists: true }
+      });
+      
+      // Calculate average rating
+      const totalRatings = completedBookings.length;
+      const ratingSum = completedBookings.reduce((sum, booking) => sum + booking.rating.score, 0);
+      const averageRating = totalRatings > 0 ? (ratingSum / totalRatings).toFixed(1) : 0;
+      
+      // Update professional's rating
+      professional.rating = parseFloat(averageRating);
+      await professional.save();
+      
+      // Create notification for professional
+      await Notification.create({
+        recipient: booking.professional,
+        title: 'New Rating Received',
+        message: `You received a ${score}-star rating for your service`,
+        type: 'new_rating',
+        data: { bookingId: booking._id }
+      });
+    }
+  }
+  
+  // Fetch the updated booking with populated fields for response
+  const updatedBooking = await Booking.findById(booking._id)
+    .populate('customer', 'name phone profileImage')
+    .populate('professional', 'name phone rating profileImage experience specialization')
+    .populate('service', 'title price duration image description category vehicleType')
+    .populate('trackingUpdates.updatedBy', 'name role');
+  
+  res.status(200).json({
+    status: 'success',
+    data: {
+      booking: updatedBooking
     }
   });
 });
@@ -261,10 +418,19 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
  * @route POST /api/bookings/:id/tracking
  */
 export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
-  const { status, location, notes } = req.body;
+  const { status, message, location } = req.body;
+  const validStatuses = [
+    'pending',
+    'confirmed',
+    'assigned',
+    'in-progress',
+    'completed',
+    'cancelled',
+    'rejected'
+  ];
 
-  if (!status) {
-    return next(new AppError('Please provide a status update', 400));
+  if (!status || !validStatuses.includes(status)) {
+    return next(new AppError('Please provide a valid status update', 400));
   }
 
   const booking = await Booking.findById(req.params.id);
@@ -273,30 +439,48 @@ export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
     return next(new AppError('No booking found with that ID', 404));
   }
 
-  // Only professionals assigned to the booking can add tracking updates
+  // Only professionals assigned to the booking or admins can add tracking updates
   if (
     req.user.role !== 'admin' &&
-    booking.professional.toString() !== req.user.id
+    (booking.professional && booking.professional.toString() !== req.user.id)
   ) {
     return next(new AppError('You are not authorized to update this booking', 403));
   }
 
-  // Add tracking update
-  booking.tracking.push({
+  // Create tracking update
+  const trackingUpdate = {
     status,
-    location,
-    notes,
-    timestamp: Date.now(),
-    updatedBy: req.user.id
-  });
+    message: message || `Booking status updated to ${status}`,
+    updatedBy: req.user.id,
+    timestamp: Date.now()
+  };
+  
+  // Add location if provided
+  if (location) {
+    trackingUpdate.location = location;
+  }
 
+  // Add tracking update to the booking
+  booking.trackingUpdates.push(trackingUpdate);
+  
+  // Update the booking status as well
+  booking.status = status;
+
+  // Save the booking
   await booking.save();
+  
+  // Fetch the updated booking with populated fields for response
+  const updatedBooking = await Booking.findById(booking._id)
+    .populate('customer', 'name phone profileImage')
+    .populate('professional', 'name phone rating profileImage experience specialization')
+    .populate('service', 'title price duration image description category vehicleType')
+    .populate('trackingUpdates.updatedBy', 'name role');
 
   // Create notification for customer
   await Notification.create({
     recipient: booking.customer,
     title: 'Service Update',
-    message: `Your service status: ${status}`,
+    message: message || `Your service status: ${status}`,
     type: 'tracking_update',
     data: { bookingId: booking._id }
   });
@@ -304,7 +488,7 @@ export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     data: {
-      booking
+      booking: updatedBooking
     }
   });
 });

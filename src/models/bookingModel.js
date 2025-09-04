@@ -19,7 +19,8 @@ const bookingSchema = new mongoose.Schema(
     vehicle: {
       type: {
         type: String,
-        enum: ["2 Wheeler", "4 Wheeler"]
+        enum: ["2 Wheeler", "4 Wheeler"],
+        required: [true, "Vehicle type is required"]
       },
       brand: {
         type: String,
@@ -42,7 +43,7 @@ const bookingSchema = new mongoose.Schema(
         required: [true, "Booking must have a location address"]
       },
       coordinates: {
-        type: [Number] // [longitude, latitude]
+        type: [Number]
       }
     },
     status: {
@@ -58,6 +59,31 @@ const bookingSchema = new mongoose.Schema(
       ],
       default: "pending"
     },
+    trackingUpdates: [
+      {
+        status: {
+          type: String,
+          enum: [
+            "pending",
+            "confirmed",
+            "assigned",
+            "in-progress",
+            "completed",
+            "cancelled",
+            "rejected"
+          ]
+        },
+        message: String,
+        timestamp: {
+          type: Date,
+          default: Date.now
+        },
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        }
+      }
+    ],
     price: {
       type: Number,
       required: [true, "Booking must have a price"]
@@ -69,7 +95,7 @@ const bookingSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["cash", "card", "upi", "wallet"],
+      enum: ["cash", "card", "upi"],
       default: "cash"
     },
     paymentId: String,

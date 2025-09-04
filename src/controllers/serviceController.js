@@ -2,12 +2,63 @@ import Service from "../models/serviceModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
 
 /**
+ * Get popular services
+ * @route GET /api/services/popular
+ */
+export const getPopularServices = asyncHandler(async (req, res, next) => {
+  const limit = parseInt(req.query.limit) || 5;
+  
+  const services = await Service.find({ 
+    isActive: true,
+    isPopular: true 
+  })
+  .sort('-rating')
+  .limit(limit);
+  
+  res.status(200).json({
+    status: 'success',
+    results: services.length,
+    services
+  });
+});
+
+/**
+ * Get services by category
+ * @route GET /api/services/categories/:category
+ */
+export const getServicesByCategory = asyncHandler(async (req, res, next) => {
+  const { category } = req.params;
+  
+  // Validate category
+  const validCategories = ['car wash', 'bike wash', 'detailing', 'maintenance', 'customization', 'other'];
+  if (!validCategories.includes(category)) {
+    return next(new AppError('Invalid category', 400));
+  }
+  
+  const services = await Service.find({ 
+    category,
+    isActive: true 
+  });
+  
+  res.status(200).json({
+    status: 'success',
+    results: services.length,
+    services
+  });
+});
+
+/**
  * Get all services
  * @route GET /api/services
  */
 export const getAllServices = asyncHandler(async (req, res, next) => {
   // Build query
   let query = Service.find();
+  
+  // Filter by active status (default to active only)
+  if (req.query.showInactive !== 'true') {
+    query = query.find({ isActive: true });
+  }
   
   // Filter by category if provided
   if (req.query.category) {
@@ -22,25 +73,41 @@ export const getAllServices = asyncHandler(async (req, res, next) => {
   // Filter by price range if provided
   if (req.query.minPrice && req.query.maxPrice) {
     query = query.find({
-      price: { $gte: req.query.minPrice, $lte: req.query.maxPrice }
+      price: { $gte: parseInt(req.query.minPrice), $lte: parseInt(req.query.maxPrice) }
     });
   } else if (req.query.minPrice) {
-    query = query.find({ price: { $gte: req.query.minPrice } });
+    query = query.find({ price: { $gte: parseInt(req.query.minPrice) } });
   } else if (req.query.maxPrice) {
-    query = query.find({ price: { $lte: req.query.maxPrice } });
+    query = query.find({ price: { $lte: parseInt(req.query.maxPrice) } });
   }
   
-  // Sort by popularity, price, or rating
+  // Filter by search term if provided
+  if (req.query.search) {
+    query = query.find({
+      $or: [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } },
+        { tags: { $in: [new RegExp(req.query.search, 'i')] } }
+      ]
+    });
+  }
+  
+  // Filter by popular if requested
+  if (req.query.popular === 'true') {
+    query = query.find({ isPopular: true });
+  }
+  
+  // Sort by popularity, price, rating, or newest
   if (req.query.sort) {
     const sortBy = req.query.sort.split(',').join(' ');
     query = query.sort(sortBy);
   } else {
-    query = query.sort('-popularity');
+    query = query.sort('-createdAt');
   }
   
   // Pagination
-  const page = req.query.page * 1 || 1;
-  const limit = req.query.limit * 1 || 10;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
   
   query = query.skip(skip).limit(limit);
@@ -48,12 +115,16 @@ export const getAllServices = asyncHandler(async (req, res, next) => {
   // Execute query
   const services = await query;
   
+  // Get total count for pagination info
+  const totalCount = await Service.countDocuments();
+  
   res.status(200).json({
     status: 'success',
     results: services.length,
-    data: {
-      services
-    }
+    totalCount,
+    currentPage: page,
+    totalPages: Math.ceil(totalCount / limit),
+    services: services
   });
 });
 
@@ -68,11 +139,17 @@ export const getService = asyncHandler(async (req, res, next) => {
     return next(new AppError('No service found with that ID', 404));
   }
   
+  // Get related services in the same category
+  const relatedServices = await Service.find({
+    category: service.category,
+    _id: { $ne: service._id },
+    isActive: true
+  }).limit(4);
+  
   res.status(200).json({
     status: 'success',
-    data: {
-      service
-    }
+    service,
+    relatedServices
   });
 });
 
@@ -181,7 +258,7 @@ export const getTopServices = asyncHandler(async (req, res, next) => {
  * Get services by category
  * @route GET /api/services/categories/:category
  */
-export const getServicesByCategory = asyncHandler(async (req, res, next) => {
+export const getServicesByCategoryId = asyncHandler(async (req, res, next) => {
   const services = await Service.find({ category: req.params.category });
   
   res.status(200).json({

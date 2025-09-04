@@ -18,7 +18,7 @@ import {
   getMyAddresses,
   setDefaultAddress,
 } from '../controllers/userController.js';
-import { protect, restrictTo } from '../middleware/authMiddleware.js';
+import { protect, restrictTo } from '../controllers/authController.js';
 
 const router = express.Router();
 

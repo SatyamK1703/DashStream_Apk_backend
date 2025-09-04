@@ -17,10 +17,9 @@ const serviceSchema = new mongoose.Schema(
       type: String,
       enum: [
         'car wash',
-        'bke wash',
+        'bike wash',
         'detailing',
         'maintenance',
-        'detailing',
         'customization',
         'other'
       ],
@@ -37,9 +36,9 @@ const serviceSchema = new mongoose.Schema(
     },
     image: String,
     vehicleType: {
-      type: [String],
+      type: String,
       enum: ['2 Wheeler', '4 Wheeler', 'Both'],
-      default: ['Both']
+      default: 'Both'
     },
     isPopular: {
       type: Boolean,
@@ -62,6 +61,10 @@ const serviceSchema = new mongoose.Schema(
     },
     reviewCount: Number, // For compatibility with your current data
     tags: [String],
+    estimatedTime: {
+      type: Number,  // in minutes
+      default: 60
+    },
     features: [String], // Matches your current array of features
     inclusions: [String],
     exclusions: [String],

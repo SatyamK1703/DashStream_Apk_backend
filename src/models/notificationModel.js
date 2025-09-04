@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const notificationSchema = new mongoose.Schema(
   {
-    user: {
+    recipient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true
@@ -17,21 +17,37 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['booking', 'promo', 'payment', 'system'],
+      enum: ['booking', 'promo', 'payment', 'system', 'chat'],
       required: true
     },
     relatedId: {
       type: String
     },
-    isRead: {
+    read: {
       type: Boolean,
       default: false
     },
     readAt: {
       type: Date
     },
-    actionUrl: {
-      type: String
+    actionType: {
+      type: String,
+      enum: ['open_booking', 'open_chat', 'open_profile', 'open_service', 'open_payment', 'none'],
+      default: 'none'
+    },
+    actionParams: {
+      type: Object // Parameters for the action like bookingId, chatId, etc.
+    },
+    priority: {
+      type: String,
+      enum: ['high', 'default', 'low'],
+      default: 'default'
+    },
+    image: {
+      type: String // URL to an image to display in the notification
+    },
+    expiresAt: {
+      type: Date
     },
     meta: {
       type: Object // For extra data like discount code, estimated time, etc.

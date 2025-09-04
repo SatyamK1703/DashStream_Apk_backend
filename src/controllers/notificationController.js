@@ -1,6 +1,8 @@
 
-import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
+import { asyncHandler } from '../middleware/errorMiddleware.js';
+import AppError from '../utils/appError.js';
 import Notification from '../models/notificationModel.js';
+import { sendPushNotification } from '../services/notificationService.js';
 
 
 /**
@@ -11,13 +13,10 @@ export const getMyNotifications = asyncHandler(async (req, res, next) => {
   const notifications = await Notification.find({ recipient: req.user.id })
     .sort('-createdAt');
 
-  res.status(200).json({
-    status: 'success',
-    results: notifications.length,
-    data: {
-      notifications
-    }
-  });
+  res.sendSuccess(
+    { notifications, count: notifications.length },
+    'Notifications retrieved successfully'
+  );
 });
 
 /**
@@ -30,12 +29,10 @@ export const getUnreadCount = asyncHandler(async (req, res, next) => {
     read: false
   });
 
-  res.status(200).json({
-    status: 'success',
-    data: {
-      unreadCount: count
-    }
-  });
+  res.sendSuccess(
+    { unreadCount: count },
+    'Unread count retrieved successfully'
+  );
 });
 
 /**
@@ -57,12 +54,10 @@ export const markAsRead = asyncHandler(async (req, res, next) => {
   notification.read = true;
   await notification.save();
 
-  res.status(200).json({
-    status: 'success',
-    data: {
-      notification
-    }
-  });
+  res.sendSuccess(
+    { notification },
+    'Notification marked as read'
+  );
 });
 
 /**
@@ -75,10 +70,10 @@ export const markAllAsRead = asyncHandler(async (req, res, next) => {
     { read: true }
   );
 
-  res.status(200).json({
-    status: 'success',
-    message: 'All notifications marked as read'
-  });
+  res.sendSuccess(
+    null,
+    'All notifications marked as read'
+  );
 });
 
 /**
@@ -99,10 +94,10 @@ export const deleteNotification = asyncHandler(async (req, res, next) => {
 
   await Notification.findByIdAndDelete(req.params.id);
 
-  res.status(204).json({
-    status: 'success',
-    data: null
-  });
+  res.sendSuccess(
+    null,
+    'Notification deleted successfully'
+  );
 });
 
 /**
@@ -133,12 +128,11 @@ export const createNotification = asyncHandler(async (req, res, next) => {
 
   const newNotification = await Notification.create(req.body);
 
-  res.status(201).json({
-    status: 'success',
-    data: {
-      notification: newNotification
-    }
-  });
+  res.sendSuccess(
+    { notification: newNotification },
+    'Notification created successfully',
+    201
+  );
 });
 
 /**
@@ -153,10 +147,10 @@ export const deleteExpiredNotifications = asyncHandler(async (req, res, next) =>
 
   const result = await Notification.deleteExpired();
 
-  res.status(200).json({
-    status: 'success',
-    message: `${result.deletedCount} expired notifications deleted`
-  });
+  res.sendSuccess(
+    { deletedCount: result.deletedCount },
+    `${result.deletedCount} expired notifications deleted`
+  );
 });
 
 /**
@@ -171,11 +165,8 @@ export const getAllNotifications = asyncHandler(async (req, res, next) => {
 
   const notifications = await Notification.find();
 
-  res.status(200).json({
-    status: 'success',
-    results: notifications.length,
-    data: {
-      notifications
-    }
-  });
+  res.sendSuccess(
+    { notifications, count: notifications.length },
+    'All notifications retrieved successfully'
+  );
 });

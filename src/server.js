@@ -8,6 +8,8 @@ import dotenv from 'dotenv';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import passport from './utils/passport.js';
+import compression from 'compression';
+import path from 'path';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
@@ -16,8 +18,9 @@ import bookingRoutes from './routes/bookingRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 
-// Import error handler
+// Import middleware
 import { errorHandler } from './middleware/errorMiddleware.js';
+import { responseEnhancer } from './middleware/responseMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +31,9 @@ const app = express();
 // Set security HTTP headers
 app.use(helmet());
 
+// Enable compression
+app.use(compression());
+
 // Development logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -35,9 +41,11 @@ if (process.env.NODE_ENV === 'development') {
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000, // 15 minutes by default
+  max: process.env.RATE_LIMIT_MAX || 100, // limit each IP to 100 requests per windowMs by default
+  message: 'Too many requests from this IP, please try again after some time',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 app.use('/api', limiter);
 
@@ -45,8 +53,24 @@ app.use('/api', limiter);
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// CORS
-app.use(cors());
+// Response formatter middleware
+app.use(responseEnhancer);
+
+// CORS Configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? [process.env.CORS_ORIGIN || 'https://dashstream-app.com']
+    : ['http://localhost:19000', 'http://localhost:19001', 'http://localhost:19002', 'exp://*'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors());
 
 // Session configuration
 app.use(
@@ -56,12 +80,14 @@ app.use(
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
-      ttl: 14 * 24 * 60 * 60 // 14 days
+      ttl: parseInt(process.env.SESSION_EXPIRY) / 1000 || 14 * 24 * 60 * 60, // Convert ms to seconds or default to 14 days
+      touchAfter: 24 * 3600 // Only update session once per day unless data changes
     }),
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
+      maxAge: parseInt(process.env.SESSION_EXPIRY) || 14 * 24 * 60 * 60 * 1000, // 14 days by default
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
     }
   })
 );
@@ -70,7 +96,7 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -84,13 +110,26 @@ app.use(errorHandler);
 
 // Health check route
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Server is running',
-    environment: process.env.NODE_ENV,
-    timestamp: new Date().toISOString()
-  });
+  res.sendSuccess(
+    {
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '1.0.0'
+    },
+    'Server is running'
+  );
 });
+
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+  // Set static folder
+  const __dirname = path.resolve();
+  app.use(express.static(path.join(__dirname, 'public')));
+  
+  app.get('/', (req, res) => {
+    res.send('DashStream API is running');
+  });
+}
 
 // 404 route
 app.all('*', (req, res, next) => {

@@ -62,6 +62,30 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Professional specific fields
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    totalRatings: {
+      type: Number,
+      default: 0
+    },
+    specialization: {
+      type: [String],
+      default: []
+    },
+    experience: {
+      type: Number, // Years of experience
+      default: 0
+    },
+    // Customer specific fields
     vehicle: vehicleSchema,
     addresses: [
       {
@@ -69,7 +93,15 @@ const userSchema = new mongoose.Schema(
         ref: "Address",
       },
     ],
-
+    // Common fields
+    fcmToken: {
+      type: String,
+      default: null
+    },
+    lastActive: {
+      type: Date,
+      default: Date.now
+    },
     profileImage: {
       public_id: String,
       url: String,

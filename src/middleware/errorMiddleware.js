@@ -1,5 +1,6 @@
 /**
  * Custom error handling middleware
+ * Enhanced for React Native app
  */
 
 // Error handler for development environment
@@ -8,6 +9,8 @@ const sendErrorDev = (err, res) => {
     status: err.status,
     error: err,
     message: err.message,
+    errorCode: err.errorCode || 'APP-000-000',
+    userFriendlyMessage: err.userFriendlyMessage || err.message,
     stack: err.stack
   });
 };
@@ -18,29 +21,24 @@ const sendErrorProd = (err, res) => {
   if (err.isOperational) {
     res.status(err.statusCode).json({
       status: err.status,
-      message: err.message
+      message: err.message,
+      errorCode: err.errorCode || `APP-${err.statusCode || 500}-000`,
+      userFriendlyMessage: err.userFriendlyMessage || err.message
     });
   } else {
     // Programming or other unknown error: don't leak error details
     console.error('ERROR 💥', err);
     res.status(500).json({
       status: 'error',
-      message: 'Something went wrong'
+      message: 'Something went wrong',
+      errorCode: 'APP-500-000',
+      userFriendlyMessage: 'Something went wrong. Please try again later.'
     });
   }
 };
 
-// Custom error class for API errors
-class AppError extends Error {
-  constructor(message, statusCode) {
-    super(message);
-    this.statusCode = statusCode;
-    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
-    this.isOperational = true;
-
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
+// Import custom AppError class
+import AppError from '../utils/appError.js';
 
 // Handle MongoDB duplicate key errors
 const handleDuplicateFieldsDB = err => {

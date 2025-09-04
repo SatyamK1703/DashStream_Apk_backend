@@ -9,14 +9,16 @@ import {
   createService,
   updateService,
   deleteService,
-  getServiceStats
+  getServiceStats,
+  getPopularServices
 } from '../controllers/serviceController.js';
-import { protect, restrictTo } from '../middleware/authMiddleware.js';
+import { protect, restrictTo } from '../controllers/authController.js';
 
 const router = express.Router();
 
 // Public routes
 router.get('/', getAllServices);
+router.get('/popular', getPopularServices);
 router.get('/top-services', getTopServices);
 router.get('/categories', getServiceCategories);
 router.get('/categories/:category', getServicesByCategory);
