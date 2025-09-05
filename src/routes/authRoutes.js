@@ -16,7 +16,6 @@ router.post('/verify-otp', verifyOtp);
 router.use(protect);
 router.post('/logout', logout);
 router.get('/me', (req, res) => {
-  // Format user data for React Native app
   const userData = {
     id: req.user._id,
     name: req.user.name || '',

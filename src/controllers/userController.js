@@ -3,12 +3,7 @@ import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
 import { cloudinary, upload } from '../utils/cloudinary.js';
 import Address from '../models/addressModel.js';
 
-/**
- * Filter object to only allowed fields
- * @param {Object} obj - Object to filter
- * @param {Array} allowedFields - Array of allowed field names
- * @returns {Object} - Filtered object
- */
+
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
   Object.keys(obj).forEach(el => {
@@ -17,10 +12,7 @@ const filterObj = (obj, ...allowedFields) => {
   return newObj;
 };
 
-/**
- * Create new user (admin only)
- * @route POST /api/users
- */
+//POST /api/users
 export const createUser = asyncHandler(async (req, res, next) => {
   const newUser = await User.create(req.body);
 
@@ -32,10 +24,7 @@ export const createUser = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Update user by ID (admin only)
- * @route PATCH /api/users/:id
- */
+//PATCH /api/users/:id
 export const updateUser = asyncHandler(async (req, res, next) => {
   const user = await User.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
@@ -54,10 +43,7 @@ export const updateUser = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Update current user profile
- * @route PATCH /api/users/update-profile
- */
+//PATCH /api/users/update-profile
 export const updateProfile = asyncHandler(async (req, res, next) => {
 
 
@@ -93,33 +79,35 @@ export const updateProfileImage = asyncHandler(async (req, res, next) => {
     return next(new AppError('Please upload an image', 400));
   }
 
-  const user = await User.findById(req.user.id);
+  try {
+    const user = await User.findById(req.user.id);
 
-  // If user already has a profile image, delete the old one from Cloudinary
-  if (user.profileImage && user.profileImage.public_id) {
-    await cloudinary.uploader.destroy(user.profileImage.public_id);
-  }
-
-  // Update user with new profile image
-  user.profileImage = {
-    public_id: req.file.filename,
-    url: req.file.path
-  };
-
-  await user.save();
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      user
+    // If user already has a profile image, delete the old one from Cloudinary
+    if (user.profileImage && user.profileImage.public_id) {
+      await deleteImage(user.profileImage.public_id);
     }
-  });
+
+    // Update user with new profile image
+    user.profileImage = {
+      public_id: req.file.filename,
+      url: req.file.path
+    };
+
+    await user.save();
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        user
+      }
+    });
+  } catch (error) {
+    console.error('Error updating profile image:', error);
+    return next(new AppError('Failed to update profile image. Please try again.', 500));
+  }
 });
 
-/**
- * Delete user by ID (admin only)
- * @route DELETE /api/users/:id
- */
+//DELETE /api/users/:id
 export const deleteUser = asyncHandler(async (req, res, next) => {
   const user = await User.findByIdAndDelete(req.params.id);
 
@@ -133,10 +121,7 @@ export const deleteUser = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get all users (admin only)
- * @route GET /api/users
- */
+//GET /api/users
 export const getAllUsers = asyncHandler(async (req, res, next) => {
   const users = await User.find();
 
@@ -149,10 +134,8 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get user by ID (admin only)
- * @route GET /api/users/:id
- */
+//GET /api/users/:id
+
 export const getUser = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.params.id);
 
@@ -168,10 +151,7 @@ export const getUser = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Delete current user (set inactive)
- * @route DELETE /api/users/delete-account
- */
+//DELETE /api/users/delete-account
 export const deleteAccount = asyncHandler(async (req, res, next) => {
   await User.findByIdAndUpdate(req.user.id, { active: false });
 
@@ -181,10 +161,7 @@ export const deleteAccount = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get professionals by service type and location
- * @route GET /api/users/professionals
- */
+// GET /api/users/professionals
 export const getProfessionals = asyncHandler(async (req, res, next) => {
   const { serviceType, location, rating, availability } = req.query;
   
@@ -208,10 +185,7 @@ export const getProfessionals = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get professional by ID with details
- * @route GET /api/users/professionals/:id
- */
+//GET /api/users/professionals/:id
 export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
   const professional = await User.findOne({
     _id: req.params.id,
@@ -230,10 +204,7 @@ export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Update professional profile (for professionals only)
- * @route PATCH /api/users/professional-profile
- */
+//PATCH /api/users/professional-profile
 export const updateProfessionalProfile = asyncHandler(async (req, res, next) => {
   // Check if user is a professional
   if (req.user.role !== 'professional') {
@@ -274,10 +245,7 @@ export const updateProfessionalProfile = asyncHandler(async (req, res, next) => 
   });
 });
 
-/**
- * Toggle professional availability status
- * @route PATCH /api/users/toggle-availability
- */
+//PATCH /api/users/toggle-availability
 export const toggleAvailability = asyncHandler(async (req, res, next) => {
   // Check if user is a professional
   if (req.user.role !== 'professional') {
@@ -296,10 +264,7 @@ export const toggleAvailability = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get user statistics (admin only)
- * @route GET /api/users/stats
- */
+//GET /api/users/stats
 export const getUserStats = asyncHandler(async (req, res, next) => {
   const stats = await User.aggregate([
     {
@@ -320,11 +285,7 @@ export const getUserStats = asyncHandler(async (req, res, next) => {
 });
 
 
-/**
- * @desc    Create a new address for the logged-in user
- * @route   POST /api/v1/addresses
- * @access  Private
- */
+//POST /api/v1/addresses
 export const createAddress = asyncHandler(async (req, res, next) => {
   // 1) Add the current user's ID to the request body to link the address
   req.body.customer = req.user.id;
@@ -344,12 +305,7 @@ export const createAddress = asyncHandler(async (req, res, next) => {
     },
   });
 });
-
-/**
- * @desc    Get all addresses for the logged-in user
- * @route   GET /api/v1/addresses
- * @access  Private
- */
+//GET /api/v1/addresses
 export const getMyAddresses = asyncHandler(async (req, res, next) => {
   // Find all addresses that belong to the current user
   const addresses = await Address.find({ customer: req.user.id });
@@ -363,11 +319,7 @@ export const getMyAddresses = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * @desc    Update an existing address
- * @route   PATCH /api/v1/addresses/:id
- * @access  Private
- */
+//PATCH /api/v1/addresses/:id
 export const updateAddress = asyncHandler(async (req, res, next) => {
   // Find the address by its ID AND ensure it belongs to the logged-in user
   const address = await Address.findOneAndUpdate(
@@ -391,11 +343,7 @@ export const updateAddress = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * @desc    Delete an address
- * @route   DELETE /api/v1/addresses/:id
- * @access  Private
- */
+//DELETE /api/v1/addresses/:id
 export const deleteAddress = asyncHandler(async (req, res, next) => {
   // 1) Find the address by ID AND ensure it belongs to the current user before deleting
   const address = await Address.findOneAndDelete({
@@ -419,11 +367,7 @@ export const deleteAddress = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * @desc    Set an address as the default
- * @route   PATCH /api/v1/addresses/:id/set-default
- * @access  Private
- */
+//PATCH /api/v1/addresses/:id/set-default
 export const setDefaultAddress = asyncHandler(async (req, res, next) => {
     const addressId = req.params.id;
     const userId = req.user.id;

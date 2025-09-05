@@ -34,7 +34,7 @@ app.use(helmet());
 // Enable compression
 app.use(compression());
 
-// Development logging
+// Development logging - only in development mode
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
@@ -106,8 +106,6 @@ app.use('/api/notifications', notificationRoutes);
 // Error handling middleware
 app.use(errorHandler);
 
-// export default app;
-
 // Health check route
 app.get('/api/health', (req, res) => {
   res.sendSuccess(
@@ -119,6 +117,7 @@ app.get('/api/health', (req, res) => {
     'Server is running'
   );
 });
+
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

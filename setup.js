@@ -10,7 +10,7 @@ const path = require('path');
  * 3. Provide instructions for starting the server
  */
 
-console.log('\n🚀 Setting up DashStream backend...\n');
+console.log('\n🚀 Setting up DashSt eam backend...\n');
 
 // Check if node_modules exists
 if (!fs.existsSync(path.join(__dirname, 'node_modules'))) {

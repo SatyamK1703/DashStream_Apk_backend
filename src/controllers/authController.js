@@ -69,24 +69,6 @@ export const sendOtp = asyncHandler(async (req, res, next) => {
     }
     
     try {
-        // In development, use a fixed OTP for testing with React Native app
-        if (process.env.NODE_ENV === 'development') {
-            // Store a test OTP (matches the React Native app's test OTPs)
-            const testOtp = user.role === 'admin' ? '1111' : 
-                           user.role === 'professional' ? '2222' : '1234';
-            
-            user.otp = testOtp;
-            user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-            await user.save({ validateBeforeSave: false });
-            
-            return res.status(200).json({
-                status: "success",
-                message: "OTP sent successfully (Development Mode).",
-                phone: formattedPhone
-            });
-        }
-        
-        // Production mode - use Twilio
         const twilioResponse = await twilioSendOtp(formattedPhone);
         
         if (!twilioResponse || twilioResponse.status !== "pending") {
@@ -119,36 +101,6 @@ export const verifyOtp = asyncHandler(async (req, res, next) => {
     if (!user) {
         return next(new AppError("User not found. Please sign up first.", 404));
     }
-    
-    // Development mode - check against stored OTP or use test OTPs
-    if (process.env.NODE_ENV === 'development') {
-        // Check if the OTP matches the stored OTP or the test OTPs based on role
-        const isValidOtp = 
-            (user.otp && user.otp === otp) || 
-            (otp === '1111' && (user.role === 'admin' || !user.role)) || 
-            (otp === '2222' && (user.role === 'professional' || !user.role)) || 
-            (otp === '1234' && (user.role === 'customer' || !user.role));
-        
-        if (!isValidOtp) {
-            return next(new AppError("The OTP is invalid or has expired.", 400));
-        }
-        
-        // Set user role based on OTP if not already set
-        if (otp === '1111' && user.role !== 'admin') {
-            user.role = 'admin';
-        } else if (otp === '2222' && user.role !== 'professional') {
-            user.role = 'professional';
-        } else if (otp === '1234' && !user.role) {
-            user.role = 'customer';
-        }
-        
-        user.isPhoneVerified = true;
-        await user.save({ validateBeforeSave: false });
-        
-        return createSendToken(user, 200, res);
-    }
-    
-    // Production mode - use Twilio
     let verificationCheck;
     try {
         verificationCheck = await twilioVerifyOtp(formattedPhone, otp);
@@ -162,6 +114,8 @@ export const verifyOtp = asyncHandler(async (req, res, next) => {
     }
     
     user.isPhoneVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
     await user.save({ validateBeforeSave: false });
     createSendToken(user, 200, res);
 });
