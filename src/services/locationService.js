@@ -4,12 +4,6 @@ import mongoose from 'mongoose';
 import firebaseApp from '../config/firebase.js';
 import { sendPushNotification } from './notificationService.js';
 
-/**
- * Create or update a professional's location
- * @param {string} userId - The user ID of the professional
- * @param {Object} locationData - The location data to update
- * @returns {Promise<Object>} The updated location document
- */
 export const updateProfessionalLocation = async (userId, locationData) => {
   try {
     // Validate user exists and is a professional
@@ -51,12 +45,6 @@ export const updateProfessionalLocation = async (userId, locationData) => {
   }
 };
 
-/**
- * Update a professional's status (available, busy, offline)
- * @param {string} userId - The user ID of the professional
- * @param {string} status - The new status
- * @returns {Promise<Object>} The updated location document
- */
 export const updateProfessionalStatus = async (userId, status) => {
   try {
     // Validate status
@@ -88,12 +76,6 @@ export const updateProfessionalStatus = async (userId, status) => {
   }
 };
 
-/**
- * Enable or disable location tracking for a professional
- * @param {string} userId - The user ID of the professional
- * @param {boolean} enabled - Whether tracking should be enabled
- * @returns {Promise<Object>} The updated location document
- */
 export const setTrackingEnabled = async (userId, enabled) => {
   try {
     // Find location document
@@ -119,12 +101,7 @@ export const setTrackingEnabled = async (userId, enabled) => {
   }
 };
 
-/**
- * Update tracking settings for a professional
- * @param {string} userId - The user ID of the professional
- * @param {Object} settings - The settings to update
- * @returns {Promise<Object>} The updated location document
- */
+
 export const updateTrackingSettings = async (userId, settings) => {
   try {
     // Find location document
@@ -144,11 +121,7 @@ export const updateTrackingSettings = async (userId, settings) => {
   }
 };
 
-/**
- * Get a professional's current location
- * @param {string} professionalId - The user ID of the professional
- * @returns {Promise<Object>} The location data
- */
+
 export const getProfessionalLocation = async (professionalId) => {
   try {
     const location = await Location.findOne({ user: professionalId })
@@ -165,12 +138,7 @@ export const getProfessionalLocation = async (professionalId) => {
   }
 };
 
-/**
- * Get a professional's location history
- * @param {string} professionalId - The user ID of the professional
- * @param {number} limit - Maximum number of history items to return
- * @returns {Promise<Array>} The location history
- */
+
 export const getProfessionalLocationHistory = async (professionalId, limit = 50) => {
   try {
     const location = await Location.findOne({ user: professionalId });
@@ -187,13 +155,7 @@ export const getProfessionalLocationHistory = async (professionalId, limit = 50)
   }
 };
 
-/**
- * Find professionals near a specific location
- * @param {Object} coordinates - The coordinates to search near
- * @param {number} maxDistance - Maximum distance in meters
- * @param {string} status - Filter by professional status
- * @returns {Promise<Array>} Array of nearby professionals with their locations
- */
+
 export const findNearbyProfessionals = async (coordinates, maxDistance = 10000, status = 'available') => {
   try {
     return await Location.findNearbyProfessionals(coordinates, maxDistance, status);
@@ -203,12 +165,7 @@ export const findNearbyProfessionals = async (coordinates, maxDistance = 10000, 
   }
 };
 
-/**
- * Set up real-time location updates using Firebase
- * @param {string} userId - The user ID
- * @param {string} professionalId - The professional's user ID
- * @returns {Promise<void>}
- */
+
 export const subscribeToLocationUpdates = async (userId, professionalId) => {
   try {
     // Get the Firebase database reference
@@ -228,12 +185,7 @@ export const subscribeToLocationUpdates = async (userId, professionalId) => {
   }
 };
 
-/**
- * Unsubscribe from real-time location updates
- * @param {string} userId - The user ID
- * @param {string} professionalId - The professional's user ID
- * @returns {Promise<void>}
- */
+
 export const unsubscribeFromLocationUpdates = async (userId, professionalId) => {
   try {
     // Get the Firebase database reference
@@ -249,12 +201,7 @@ export const unsubscribeFromLocationUpdates = async (userId, professionalId) => 
   }
 };
 
-/**
- * Notify subscribers when a professional's location is updated
- * @param {string} professionalId - The professional's user ID
- * @param {Object} locationData - The updated location data
- * @returns {Promise<void>}
- */
+
 export const notifyLocationSubscribers = async (professionalId, locationData) => {
   try {
     // Get the Firebase database reference
