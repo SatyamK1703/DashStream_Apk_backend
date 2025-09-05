@@ -1,6 +1,6 @@
 import * as paymentService from '../services/paymentService.js';
 import AppError from '../utils/appError.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { asyncHandler } from '../middleware/errorMiddleware.js';
 
 /**
  * Create a payment order
