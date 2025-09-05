@@ -1,23 +1,26 @@
-/**
- * Firebase Admin SDK initialization
- */
-import admin from 'firebase-admin';
-import serviceAccount from './firebaseServiceAccountKey.json' assert { type: 'json' };
+import admin from "firebase-admin";
+import dotenv from "dotenv";
 
-// Initialize Firebase Admin SDK if it hasn't been initialized yet
+dotenv.config();
+
 let firebaseAdmin = null;
 
 const initializeFirebase = () => {
   if (!firebaseAdmin) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
+
+    // 🔑 Fix private_key by converting \n to real line breaks
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+
     firebaseAdmin = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+      credential: admin.credential.cert(serviceAccount),
     });
-    console.log('Firebase Admin SDK initialized successfully');
+
+    console.log("✅ Firebase Admin SDK initialized successfully");
   }
   return firebaseAdmin;
 };
 
-// Initialize Firebase on module import
 const app = initializeFirebase();
 
 export default app;
