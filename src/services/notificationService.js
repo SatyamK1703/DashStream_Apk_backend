@@ -1,16 +1,10 @@
-/**
- * Notification Service
- * Handles sending push notifications to mobile devices
- */
+
 import DeviceToken from '../models/deviceTokenModel.js';
 import Notification from '../models/notificationModel.js';
+import firebaseApp from '../config/firebase.js';
 
-/**
- * Send a push notification to a user's devices
- * @param {Object} notificationData - The notification data
- * @param {String} userId - The recipient user ID
- * @returns {Promise} - The created notification
- */
+//Send a push notification to a user's devices
+
 export const sendPushNotification = async (notificationData, userId) => {
   try {
     // Create notification in database
@@ -43,18 +37,39 @@ export const sendPushNotification = async (notificationData, userId) => {
       }
     };
 
-    // Send to each device token
-    // This would typically use a push notification service like Firebase
-    // For now, we'll just log the payload
+    // Send to each device token using Firebase Cloud Messaging
     console.log('Push notification payload:', pushPayload);
-    console.log(`Would send to ${deviceTokens.length} devices`);
+    console.log(`Sending to ${deviceTokens.length} devices`);
 
-    // In a real implementation, you would send to Firebase or another push service here
-    // Example with Firebase:
-    // await admin.messaging().sendMulticast({
-    //   tokens: deviceTokens.map(dt => dt.token),
-    //   ...pushPayload
-    // });
+    // Send notification using Firebase Admin SDK
+    if (deviceTokens.length > 0) {
+      try {
+        const messaging = firebaseApp.messaging();
+        const response = await messaging.sendMulticast({
+          tokens: deviceTokens.map(dt => dt.token),
+          ...pushPayload
+        });
+        
+        console.log(`Successfully sent message: ${response.successCount} successful, ${response.failureCount} failed`);
+        
+        // Handle failures if needed
+        if (response.failureCount > 0) {
+          const failedTokens = [];
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              failedTokens.push(deviceTokens[idx].token);
+              console.error('Error sending to token:', resp.error);
+            }
+          });
+          
+          // You might want to handle failed tokens (e.g., remove invalid ones)
+          console.log('Failed tokens:', failedTokens);
+        }
+      } catch (fcmError) {
+        console.error('Firebase messaging error:', fcmError);
+        // Continue execution even if FCM fails
+      }
+    }
 
     return notification;
   } catch (error) {
@@ -63,12 +78,8 @@ export const sendPushNotification = async (notificationData, userId) => {
   }
 };
 
-/**
- * Send a notification to multiple users
- * @param {Object} notificationData - The notification data
- * @param {Array} userIds - Array of user IDs to notify
- * @returns {Promise} - Array of created notifications
- */
+//Send a notification to multiple users
+
 export const sendBulkNotifications = async (notificationData, userIds) => {
   try {
     const notifications = [];
@@ -85,13 +96,8 @@ export const sendBulkNotifications = async (notificationData, userIds) => {
   }
 };
 
-/**
- * Send a booking notification
- * @param {Object} booking - The booking object
- * @param {String} recipientId - The recipient user ID
- * @param {String} status - The booking status
- * @returns {Promise} - The created notification
- */
+//Send a booking notification
+
 export const sendBookingNotification = async (booking, recipientId, status) => {
   let title, message, actionType;
   

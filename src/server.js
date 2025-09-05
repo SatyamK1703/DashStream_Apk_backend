@@ -17,10 +17,13 @@ import userRoutes from './routes/userRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import locationRoutes from './routes/locationRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorMiddleware.js';
 import { responseEnhancer } from './middleware/responseMiddleware.js';
+import { rawBodyMiddleware, saveRawBody } from './middleware/webhookMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -49,8 +52,9 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// Body parser
-app.use(express.json({ limit: '100kb' }));
+// Body parser with special handling for webhooks
+app.use(rawBodyMiddleware);
+app.use(saveRawBody);
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Response formatter middleware
@@ -102,6 +106,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/location', locationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
