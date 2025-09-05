@@ -1,15 +1,9 @@
-/**
- * Device Token Controller
- * Handles registration and management of device tokens for push notifications
- */
+
 import { asyncHandler } from '../middleware/errorMiddleware.js';
 import AppError from '../utils/appError.js';
 import DeviceToken from '../models/deviceTokenModel.js';
 
-/**
- * Register a device token for push notifications
- * @route POST /api/notifications/register-device
- */
+//POST /api/notifications/register-device
 export const registerDeviceToken = asyncHandler(async (req, res, next) => {
   const { token, deviceType, deviceInfo } = req.body;
 
@@ -33,10 +27,7 @@ export const registerDeviceToken = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Deregister a device token
- * @route DELETE /api/notifications/deregister-device
- */
+//DELETE /api/notifications/deregister-device
 export const deregisterDeviceToken = asyncHandler(async (req, res, next) => {
   const { token } = req.body;
 
@@ -64,10 +55,7 @@ export const deregisterDeviceToken = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Get all device tokens for the current user
- * @route GET /api/notifications/my-devices
- */
+//GET /api/notifications/my-devices
 export const getMyDevices = asyncHandler(async (req, res, next) => {
   const devices = await DeviceToken.find({
     user: req.user.id,
@@ -80,10 +68,7 @@ export const getMyDevices = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Clean up old device tokens (admin only)
- * @route DELETE /api/notifications/cleanup-tokens
- */
+//DELETE /api/notifications/cleanup-tokens
 export const cleanupOldTokens = asyncHandler(async (req, res, next) => {
   // Only admins can perform this action
   if (req.user.role !== 'admin') {

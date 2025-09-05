@@ -36,10 +36,8 @@ const protect = asyncHandler(async (req, res, next) => {
   next();
 });
 
-/**
- * Middleware to restrict access to certain roles
- * @param  {...String} roles - Allowed roles
- */
+//Middleware to restrict access to certain roles
+
 const restrictTo = (...roles) => {
   return (req, res, next) => {
     // roles is an array: ['admin', 'professional']
@@ -50,9 +48,7 @@ const restrictTo = (...roles) => {
   };
 };
 
-/**
- * Middleware to verify OTP for phone verification
- */
+
 const verifyOtp = asyncHandler(async (req, res, next) => {
   const { phone, otp } = req.body;
 

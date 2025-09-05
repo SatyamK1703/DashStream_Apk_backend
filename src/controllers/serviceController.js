@@ -1,10 +1,7 @@
 import Service from "../models/serviceModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
 
-/**
- * Get popular services
- * @route GET /api/services/popular
- */
+// GET /api/services/popular
 export const getPopularServices = asyncHandler(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 5;
   
@@ -22,10 +19,7 @@ export const getPopularServices = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get services by category
- * @route GET /api/services/categories/:category
- */
+//GET /api/services/categories/:category
 export const getServicesByCategory = asyncHandler(async (req, res, next) => {
   const { category } = req.params;
   
@@ -47,10 +41,7 @@ export const getServicesByCategory = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get all services
- * @route GET /api/services
- */
+//GET /api/services
 export const getAllServices = asyncHandler(async (req, res, next) => {
   // Build query
   let query = Service.find();
@@ -128,10 +119,8 @@ export const getAllServices = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get service by ID
- * @route GET /api/services/:id
- */
+
+ //GET /api/services/:id
 export const getService = asyncHandler(async (req, res, next) => {
   const service = await Service.findById(req.params.id);
   
@@ -153,10 +142,8 @@ export const getService = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Create new service
- * @route POST /api/services
- */
+
+ //POST /api/services
 export const createService = asyncHandler(async (req, res, next) => {
   // Add creator if not provided
   if (!req.body.creator) {
@@ -173,10 +160,7 @@ export const createService = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Update service
- * @route PATCH /api/services/:id
- */
+//PATCH /api/services/:id
 export const updateService = asyncHandler(async (req, res, next) => {
   const service = await Service.findById(req.params.id);
   
@@ -209,10 +193,7 @@ export const updateService = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Delete service
- * @route DELETE /api/services/:id
- */
+//DELETE /api/services/:id
 export const deleteService = asyncHandler(async (req, res, next) => {
   const service = await Service.findById(req.params.id);
   
@@ -236,10 +217,7 @@ export const deleteService = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get top 5 popular services
- * @route GET /api/services/top-services
- */
+//GET /api/services/top-services
 export const getTopServices = asyncHandler(async (req, res, next) => {
   const services = await Service.find()
     .sort('-popularity -rating')
@@ -254,10 +232,7 @@ export const getTopServices = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get services by category
- * @route GET /api/services/categories/:category
- */
+//GET /api/services/categories/:category
 export const getServicesByCategoryId = asyncHandler(async (req, res, next) => {
   const services = await Service.find({ category: req.params.category });
   
@@ -270,10 +245,7 @@ export const getServicesByCategoryId = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get service categories
- * @route GET /api/services/categories
- */
+//GET /api/services/categories
 export const getServiceCategories = asyncHandler(async (req, res, next) => {
   const categories = await Service.aggregate([
     {
@@ -302,10 +274,7 @@ export const getServiceCategories = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Search services
- * @route GET /api/services/search
- */
+//GET /api/services/search
 export const searchServices = asyncHandler(async (req, res, next) => {
   if (!req.query.q) {
     return next(new AppError('Please provide a search query', 400));
@@ -331,10 +300,7 @@ export const searchServices = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get service statistics
- * @route GET /api/services/stats
- */
+//GET /api/services/stats
 export const getServiceStats = asyncHandler(async (req, res, next) => {
   const stats = await Service.aggregate([
     {

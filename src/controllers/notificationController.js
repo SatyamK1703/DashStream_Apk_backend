@@ -4,11 +4,7 @@ import AppError from '../utils/appError.js';
 import Notification from '../models/notificationModel.js';
 import { sendPushNotification } from '../services/notificationService.js';
 
-
-/**
- * Get all notifications for the current user
- * @route GET /api/notifications
- */
+//GET /api/notifications
 export const getMyNotifications = asyncHandler(async (req, res, next) => {
   const notifications = await Notification.find({ recipient: req.user.id })
     .sort('-createdAt');
@@ -19,10 +15,7 @@ export const getMyNotifications = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Get unread notifications count for the current user
- * @route GET /api/notifications/unread-count
- */
+// GET /api/notifications/unread-count
 export const getUnreadCount = asyncHandler(async (req, res, next) => {
   const count = await Notification.countDocuments({
     recipient: req.user.id,
@@ -35,10 +28,7 @@ export const getUnreadCount = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Mark notification as read
- * @route PATCH /api/notifications/:id/read
- */
+//PATCH /api/notifications/:id/read
 export const markAsRead = asyncHandler(async (req, res, next) => {
   const notification = await Notification.findById(req.params.id);
 
@@ -60,10 +50,7 @@ export const markAsRead = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Mark all notifications as read
- * @route PATCH /api/notifications/mark-all-read
- */
+//PATCH /api/notifications/mark-all-read
 export const markAllAsRead = asyncHandler(async (req, res, next) => {
   await Notification.updateMany(
     { recipient: req.user.id, read: false },
@@ -76,10 +63,7 @@ export const markAllAsRead = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Delete notification
- * @route DELETE /api/notifications/:id
- */
+//DELETE /api/notifications/:id
 export const deleteNotification = asyncHandler(async (req, res, next) => {
   const notification = await Notification.findById(req.params.id);
 
@@ -100,10 +84,8 @@ export const deleteNotification = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Delete all read notifications
- * @route DELETE /api/notifications/delete-read
- */
+
+//DELETE /api/notifications/delete-read
 export const deleteReadNotifications = asyncHandler(async (req, res, next) => {
   await Notification.deleteMany({
     recipient: req.user.id,
@@ -116,10 +98,7 @@ export const deleteReadNotifications = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Create a notification (admin only)
- * @route POST /api/notifications
- */
+// POST /api/notifications
 export const createNotification = asyncHandler(async (req, res, next) => {
   // Only admins can create notifications for other users
   if (req.user.role !== 'admin') {
@@ -135,10 +114,7 @@ export const createNotification = asyncHandler(async (req, res, next) => {
   );
 });
 
-/**
- * Delete expired notifications (system function)
- * This would typically be called by a scheduled job
- */
+// Delete expired notifications (system function) 
 export const deleteExpiredNotifications = asyncHandler(async (req, res, next) => {
   // Only admins can manually trigger this
   if (req.user.role !== 'admin') {
@@ -153,10 +129,8 @@ export const deleteExpiredNotifications = asyncHandler(async (req, res, next) =>
   );
 });
 
-/**
- * Get all notifications (admin only)
- * @route GET /api/notifications/all
- */
+
+ //GET /api/notifications/all
 export const getAllNotifications = asyncHandler(async (req, res, next) => {
   // Only admins can view all notifications
   if (req.user.role !== 'admin') {

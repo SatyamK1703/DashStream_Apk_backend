@@ -5,10 +5,7 @@ import Service from '../models/serviceModel.js';
 import Notification from '../models/notificationModel.js';
 import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
 
-/**
- * Create a new booking
- * @route POST /api/bookings
- */ 
+//POST /api/bookings
 export const createBooking = asyncHandler(async (req, res, next) => {
   // Add customer ID from authenticated user
   req.body.customer = req.user.id;
@@ -72,10 +69,7 @@ export const createBooking = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get all bookings (admin only)
- * @route GET /api/bookings
- */
+//GET /api/bookings
 export const getAllBookings = asyncHandler(async (req, res, next) => {
   const bookings = await Booking.find();
 
@@ -88,10 +82,7 @@ export const getAllBookings = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get booking by ID
- * @route GET /api/bookings/:id
- */
+//GET /api/bookings/:id
 export const getBooking = asyncHandler(async (req, res, next) => {
   const booking = await Booking.findById(req.params.id)
     .populate('customer', 'name phone profileImage')
@@ -118,10 +109,7 @@ export const getBooking = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get current user's bookings
- * @route GET /api/bookings/my-bookings
- */
+//GET /api/bookings/my-bookings
 export const getMyBookings = asyncHandler(async (req, res, next) => {
   let filter = {};
 
@@ -182,11 +170,7 @@ export const getMyBookings = asyncHandler(async (req, res, next) => {
   );
 });
 
-
-/**
- * Update booking status
- * @route PATCH /api/bookings/:id/status
- */
+//PATCH /api/bookings/:id/status
 export const updateBookingStatus = asyncHandler(async (req, res, next) => {
   const { status, message } = req.body;
   const validStatuses = [
@@ -330,10 +314,7 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Rate a completed booking
- * @route POST /api/bookings/:id/rate
- */
+ //POST /api/bookings/:id/rate
 export const rateBooking = asyncHandler(async (req, res, next) => {
   const { score, review } = req.body;
   
@@ -413,10 +394,7 @@ export const rateBooking = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Add tracking update to booking
- * @route POST /api/bookings/:id/tracking
- */
+//POST /api/bookings/:id/tracking
 export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
   const { status, message, location } = req.body;
   const validStatuses = [
@@ -493,10 +471,7 @@ export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Add rating and review to booking
- * @route POST /api/bookings/:id/review
- */
+ //POST /api/bookings/:id/review
 export const addBookingReview = asyncHandler(async (req, res, next) => {
   const { rating, review } = req.body;
 
@@ -560,10 +535,7 @@ export const addBookingReview = asyncHandler(async (req, res, next) => {
   });
 });
 
-/**
- * Get booking statistics
- * @route GET /api/bookings/stats
- */
+//GET /api/bookings/stats
 export const getBookingStats = asyncHandler(async (req, res, next) => {
   // Only admins and professionals can access stats
   if (req.user.role !== 'admin' && req.user.role !== 'professional') {
