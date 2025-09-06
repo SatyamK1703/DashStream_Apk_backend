@@ -1,0 +1,375 @@
+/**
+ * Validation schemas for API requests
+ * Uses Joi for schema validation
+ */
+import Joi from 'joi';
+
+// Auth validation schemas
+export const authSchemas = {
+  sendOtp: Joi.object({
+    phone: Joi.string()
+      .pattern(/^(\+[1-9]\d{10,14}|[0-9]{10})$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Phone number must be a valid format with or without country code',
+        'any.required': 'Phone number is required'
+      })
+  }),
+  
+  verifyOtp: Joi.object({
+    phone: Joi.string()
+      .pattern(/^(\+[1-9]\d{10,14}|[0-9]{10})$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Phone number must be a valid format with or without country code',
+        'any.required': 'Phone number is required'
+      }),
+    otp: Joi.string()
+      .length(4)
+      .pattern(/^[0-9]+$/)
+      .required()
+      .messages({
+        'string.length': 'OTP must be 4 digits',
+        'string.pattern.base': 'OTP must contain only numbers',
+        'any.required': 'OTP is required'
+      })
+  })
+};
+
+// Payment validation schemas
+export const paymentSchemas = {
+  createOrder: Joi.object({
+    bookingId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Booking ID must be a valid MongoDB ObjectId',
+        'any.required': 'Booking ID is required'
+      }),
+    amount: Joi.number()
+      .positive()
+      .required()
+      .messages({
+        'number.base': 'Amount must be a number',
+        'number.positive': 'Amount must be positive',
+        'any.required': 'Amount is required'
+      }),
+    notes: Joi.object().optional()
+  }),
+  
+  verifyPayment: Joi.object({
+    razorpay_order_id: Joi.string().required(),
+    razorpay_payment_id: Joi.string().required(),
+    razorpay_signature: Joi.string().required()
+  }).messages({
+    'any.required': 'All payment verification parameters are required'
+  })
+}; 
+
+// Location validation schemas
+export const locationSchemas = {
+  updateLocation: Joi.object({
+    latitude: Joi.number()
+      .min(-90).max(90)
+      .required()
+      .messages({
+        'number.base': 'Latitude must be a number',
+        'number.min': 'Latitude must be between -90 and 90',
+        'number.max': 'Latitude must be between -90 and 90',
+        'any.required': 'Latitude is required'
+      }),
+    longitude: Joi.number()
+      .min(-180).max(180)
+      .required()
+      .messages({
+        'number.base': 'Longitude must be a number',
+        'number.min': 'Longitude must be between -180 and 180',
+        'number.max': 'Longitude must be between -180 and 180',
+        'any.required': 'Longitude is required'
+      }),
+    accuracy: Joi.number().positive().optional(),
+    speed: Joi.number().min(0).optional(),
+    heading: Joi.number().min(0).max(360).optional(),
+    batteryLevel: Joi.number().min(0).max(100).optional(),
+    networkType: Joi.string().optional()
+  }),
+  
+  updateStatus: Joi.object({
+    status: Joi.string()
+      .valid('online', 'offline', 'busy', 'away')
+      .required()
+      .messages({
+        'any.only': 'Status must be one of: online, offline, busy, away',
+        'any.required': 'Status is required'
+      })
+  }),
+  
+  setTrackingEnabled: Joi.object({
+    enabled: Joi.boolean()
+      .required()
+      .messages({
+        'boolean.base': 'Enabled must be a boolean value',
+        'any.required': 'Enabled flag is required'
+      })
+  }),
+  
+  updateTrackingSettings: Joi.object({
+    updateInterval: Joi.number().integer().min(5).optional(),
+    significantChangeThreshold: Joi.number().min(0).optional(),
+    batteryOptimizationEnabled: Joi.boolean().optional(),
+    maxHistoryItems: Joi.number().integer().min(1).optional()
+  })
+};
+
+// Booking validation schemas
+export const bookingSchemas = {
+  createBooking: Joi.object({
+    serviceId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Service ID must be a valid MongoDB ObjectId',
+        'any.required': 'Service ID is required'
+      }),
+    professionalId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Professional ID must be a valid MongoDB ObjectId',
+        'any.required': 'Professional ID is required'
+      }),
+    scheduledDate: Joi.date()
+      .min('now')
+      .required()
+      .messages({
+        'date.base': 'Scheduled date must be a valid date',
+        'date.min': 'Scheduled date must be in the future',
+        'any.required': 'Scheduled date is required'
+      }),
+    scheduledTime: Joi.string()
+      .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Scheduled time must be in HH:MM format',
+        'any.required': 'Scheduled time is required'
+      }),
+    addressId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Address ID must be a valid MongoDB ObjectId',
+        'any.required': 'Address ID is required'
+      }),
+    vehicleId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .optional()
+      .messages({
+        'string.pattern.base': 'Vehicle ID must be a valid MongoDB ObjectId'
+      }),
+    notes: Joi.string().max(500).optional()
+  }),
+  
+  updateBookingStatus: Joi.object({
+    status: Joi.string()
+      .valid('pending', 'confirmed', 'in_progress', 'completed', 'cancelled')
+      .required()
+      .messages({
+        'any.only': 'Status must be one of: pending, confirmed, in_progress, completed, cancelled',
+        'any.required': 'Status is required'
+      }),
+    reason: Joi.string().max(500).when('status', {
+      is: 'cancelled',
+      then: Joi.required(),
+      otherwise: Joi.optional()
+    })
+  }),
+  
+  addTrackingUpdate: Joi.object({
+    status: Joi.string()
+      .valid('on_the_way', 'arrived', 'started', 'completed')
+      .required()
+      .messages({
+        'any.only': 'Status must be one of: on_the_way, arrived, started, completed',
+        'any.required': 'Status is required'
+      }),
+    message: Joi.string().max(200).optional(),
+    location: Joi.object({
+      latitude: Joi.number().min(-90).max(90).required(),
+      longitude: Joi.number().min(-180).max(180).required()
+    }).optional()
+  }),
+  
+  rateBooking: Joi.object({
+    rating: Joi.number()
+      .min(1)
+      .max(5)
+      .required()
+      .messages({
+        'number.base': 'Rating must be a number',
+        'number.min': 'Rating must be at least 1',
+        'number.max': 'Rating must be at most 5',
+        'any.required': 'Rating is required'
+      }),
+    review: Joi.string().max(500).optional()
+  })
+};
+
+// User validation schemas
+export const userSchemas = {
+  updateProfile: Joi.object({
+    name: Joi.string().min(2).max(50).optional(),
+    email: Joi.string().email().optional(),
+    profileImage: Joi.string().uri().optional()
+  }),
+  
+  updateProfessionalProfile: Joi.object({
+    bio: Joi.string().max(500).optional(),
+    experience: Joi.number().integer().min(0).optional(),
+    specializations: Joi.array().items(Joi.string()).optional(),
+    servicesOffered: Joi.array().items(
+      Joi.string().pattern(/^[0-9a-fA-F]{24}$/)
+    ).optional(),
+    workingHours: Joi.object({
+      monday: Joi.object({
+        start: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        end: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        closed: Joi.boolean()
+      }).optional(),
+      tuesday: Joi.object({
+        start: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        end: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        closed: Joi.boolean()
+      }).optional(),
+      wednesday: Joi.object({
+        start: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        end: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        closed: Joi.boolean()
+      }).optional(),
+      thursday: Joi.object({
+        start: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        end: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        closed: Joi.boolean()
+      }).optional(),
+      friday: Joi.object({
+        start: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        end: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        closed: Joi.boolean()
+      }).optional(),
+      saturday: Joi.object({
+        start: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        end: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        closed: Joi.boolean()
+      }).optional(),
+      sunday: Joi.object({
+        start: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        end: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+        closed: Joi.boolean()
+      }).optional()
+    }).optional()
+  }),
+  
+  createAddress: Joi.object({
+    name: Joi.string().min(2).max(50).required(),
+    line1: Joi.string().min(5).max(100).required(),
+    line2: Joi.string().max(100).optional().allow(''),
+    city: Joi.string().min(2).max(50).required(),
+    state: Joi.string().min(2).max(50).required(),
+    pincode: Joi.string().length(6).pattern(/^[0-9]+$/).required(),
+    isDefault: Joi.boolean().optional()
+  }),
+  
+  updateAddress: Joi.object({
+    name: Joi.string().min(2).max(50).optional(),
+    line1: Joi.string().min(5).max(100).optional(),
+    line2: Joi.string().max(100).optional().allow(''),
+    city: Joi.string().min(2).max(50).optional(),
+    state: Joi.string().min(2).max(50).optional(),
+    pincode: Joi.string().length(6).pattern(/^[0-9]+$/).optional(),
+    isDefault: Joi.boolean().optional()
+  })
+};
+
+// Service validation schemas
+export const serviceSchemas = {
+  createService: Joi.object({
+    title: Joi.string().min(3).max(100).required(),
+    description: Joi.string().min(10).max(1000).required(),
+    category: Joi.string()
+      .valid('car wash', 'bike wash', 'detailing', 'maintenance', 'customization', 'other')
+      .required(),
+    price: Joi.number().positive().required(),
+    discountPrice: Joi.number().positive().less(Joi.ref('price')).optional(),
+    duration: Joi.string().required(),
+    image: Joi.string().uri().optional(),
+    vehicleType: Joi.string().valid('2 Wheeler', '4 Wheeler', 'Both').required(),
+    isPopular: Joi.boolean().optional(),
+    tags: Joi.array().items(Joi.string()).optional(),
+    estimatedTime: Joi.string().optional()
+  }),
+  
+  updateService: Joi.object({
+    title: Joi.string().min(3).max(100).optional(),
+    description: Joi.string().min(10).max(1000).optional(),
+    category: Joi.string()
+      .valid('car wash', 'bike wash', 'detailing', 'maintenance', 'customization', 'other')
+      .optional(),
+    price: Joi.number().positive().optional(),
+    discountPrice: Joi.number().positive().less(Joi.ref('price')).optional(),
+    duration: Joi.string().optional(),
+    image: Joi.string().uri().optional(),
+    vehicleType: Joi.string().valid('2 Wheeler', '4 Wheeler', 'Both').optional(),
+    isPopular: Joi.boolean().optional(),
+    isActive: Joi.boolean().optional(),
+    tags: Joi.array().items(Joi.string()).optional(),
+    estimatedTime: Joi.string().optional()
+  })
+};
+
+// Notification validation schemas
+export const notificationSchemas = {
+  createNotification: Joi.object({
+    userId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'User ID must be a valid MongoDB ObjectId',
+        'any.required': 'User ID is required'
+      }),
+    title: Joi.string().min(3).max(100).required(),
+    message: Joi.string().min(5).max(500).required(),
+    type: Joi.string()
+      .valid('booking', 'payment', 'system', 'promotion')
+      .required(),
+    data: Joi.object().optional()
+  }),
+  
+  registerDeviceToken: Joi.object({
+    token: Joi.string().required(),
+    deviceType: Joi.string().valid('ios', 'android', 'web').required(),
+    deviceName: Joi.string().optional()
+  })
+};
+
+// Membership validation schemas
+export const membershipSchemas = {
+  purchaseMembership: Joi.object({
+    planId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Plan ID must be a valid MongoDB ObjectId',
+        'any.required': 'Plan ID is required'
+      }),
+    autoRenew: Joi.boolean().optional()
+  }),
+  
+  createPlan: Joi.object({
+    name: Joi.string().min(3).max(50).required(),
+    description: Joi.string().min(10).max(500).required(),
+    price: Joi.number().positive().required(),
+    duration: Joi.number().integer().positive().required(),
+    durationType: Joi.string().valid('days', 'months', 'years').required(),
+    features: Joi.array().items(Joi.string()).min(1).required(),
+    isActive: Joi.boolean().optional()
+  })
+};

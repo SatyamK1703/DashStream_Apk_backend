@@ -3,14 +3,14 @@
  * Provides consistent error formatting for the React Native app
  */
 class AppError extends Error {
-  constructor(message, statusCode) {
+  constructor(message, statusCode, errorCode = null) {
     super(message);
     this.statusCode = statusCode;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
     this.isOperational = true;
 
     // Add additional properties for React Native app
-    this.errorCode = this.generateErrorCode(statusCode, message);
+    this.errorCode = errorCode || this.generateErrorCode(statusCode, message);
     this.userFriendlyMessage = this.getUserFriendlyMessage(statusCode, message);
 
     Error.captureStackTrace(this, this.constructor);

@@ -13,6 +13,8 @@ import {
   getPopularServices
 } from '../controllers/serviceController.js';
 import { protect, restrictTo } from '../controllers/authController.js';
+import { validateBody, validateParams } from '../middleware/validationMiddleware.js';
+import { serviceSchemas } from '../schemas/validationSchemas.js';
 
 const router = express.Router();
 
@@ -29,10 +31,10 @@ router.get('/:id', getService);
 router.use(protect);
 
 // Routes for professionals and admins
-router.post('/', restrictTo('professional', 'admin'), createService);
+router.post('/', restrictTo('professional', 'admin'), validateBody(serviceSchemas.createService), createService);
 
 router.route('/:id')
-  .patch(restrictTo('professional', 'admin'), updateService)
+  .patch(restrictTo('professional', 'admin'), validateBody(serviceSchemas.updateService), updateService)
   .delete(restrictTo('professional', 'admin'), deleteService);
 
 // Admin only routes

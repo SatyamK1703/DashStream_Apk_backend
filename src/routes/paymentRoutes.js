@@ -1,6 +1,8 @@
 import express from 'express';
 import * as paymentController from '../controllers/paymentController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { validateBody } from '../middleware/validationMiddleware.js';
+import { paymentSchemas } from '../schemas/validationSchemas.js';
 
 const router = express.Router();
 
@@ -11,10 +13,10 @@ router.post('/webhook', paymentController.handleWebhook);
 router.use(protect);
 
 // Create payment order
-router.post('/create-order', paymentController.createPaymentOrder);
+router.post('/create-order', validateBody(paymentSchemas.createOrder), paymentController.createPaymentOrder);
 
 // Verify payment
-router.post('/verify', paymentController.verifyPayment);
+router.post('/verify', validateBody(paymentSchemas.verifyPayment), paymentController.verifyPayment);
 
 // Get user payments
 router.get('/user', paymentController.getUserPayments);

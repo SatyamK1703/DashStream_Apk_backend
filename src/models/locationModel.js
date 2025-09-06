@@ -35,6 +35,15 @@ const locationSchema = new mongoose.Schema({
     index: true
   },
   current: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      required: true
+    },
     latitude: {
       type: Number,
       required: true,
@@ -101,12 +110,24 @@ const locationSchema = new mongoose.Schema({
 });
 
 // Index for geospatial queries
-locationSchema.index({ 'current.latitude': 1, 'current.longitude': 1 });
+locationSchema.index({ 'current': '2dsphere' });
+
+// Create a pre-save hook to ensure current location is formatted as GeoJSON
+locationSchema.pre('save', function(next) {
+  // Convert current location to GeoJSON format if it exists
+  if (this.current && this.current.latitude && this.current.longitude) {
+    this.current.type = 'Point';
+    this.current.coordinates = [this.current.longitude, this.current.latitude];
+  }
+  next();
+});
 
 // Method to update current location and add to history
 locationSchema.methods.updateLocation = async function(locationData) {
-  // Update current location
+  // Update current location with GeoJSON format
   this.current = {
+    type: 'Point',
+    coordinates: [locationData.longitude, locationData.latitude],
     latitude: locationData.latitude,
     longitude: locationData.longitude,
     accuracy: locationData.accuracy || 0,
@@ -174,8 +195,9 @@ locationSchema.statics.findNearbyProfessionals = async function(coordinates, max
         near: { type: 'Point', coordinates: [longitude, latitude] },
         distanceField: 'distance',
         maxDistance: maxDistance,
-        query: { status: status },
-        spherical: true
+        query: { status: status, trackingEnabled: true },
+        spherical: true,
+        distanceMultiplier: 0.001 // Convert distance to kilometers
       }
     },
     {

@@ -5,12 +5,14 @@ import {
   logout,
   protect,
 } from '../controllers/authController.js';
+import { validateBody } from '../middleware/validationMiddleware.js';
+import { authSchemas } from '../schemas/validationSchemas.js';
 
 const router = express.Router();
 
 // Public routes
-router.post('/send-otp', sendOtp);
-router.post('/verify-otp', verifyOtp);
+router.post('/send-otp', validateBody(authSchemas.sendOtp), sendOtp);
+router.post('/verify-otp', validateBody(authSchemas.verifyOtp), verifyOtp);
 
 // Protected routes
 router.use(protect);
