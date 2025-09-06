@@ -83,7 +83,9 @@ export const sendOtp = asyncHandler(async (req, res, next) => {
 
     } catch (error) {
         console.error("Error in sendOtp controller:", error);
-        return next(new AppError("Could not send OTP. Please check the phone number and try again later.", 500));
+        const appError = new AppError("Could not send OTP. Please check the phone number and try again later.", 500);
+        appError.errorCode = "APP-500-962";
+        return next(appError);
     }
 });
 
@@ -106,11 +108,15 @@ export const verifyOtp = asyncHandler(async (req, res, next) => {
         verificationCheck = await twilioVerifyOtp(formattedPhone, otp);
     } catch (err) {
         console.error("Twilio Verification API Error:", err);
-        return next(new AppError("The OTP verification service failed. Please try again.", 500));
+        const appError = new AppError("The OTP verification service failed. Please try again.", 500);
+        appError.errorCode = "APP-500-962";
+        return next(appError);
     }
     
     if (!verificationCheck || verificationCheck.status !== "approved") {
-        return next(new AppError("The OTP is invalid or has expired.", 400));
+        const appError = new AppError("The OTP is invalid or has expired.", 400);
+        appError.errorCode = verificationCheck?.status === "expired" ? "APP-400-101" : "APP-400-100";
+        return next(appError);
     }
     
     user.isPhoneVerified = true;
