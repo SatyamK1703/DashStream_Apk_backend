@@ -33,7 +33,9 @@ export const authSchemas = {
         'string.pattern.base': 'OTP must contain only numbers',
         'any.required': 'OTP is required'
       })
-  })
+  }),
+  
+  // Removed Firebase Phone Authentication schemas as we've migrated to Twilio
 };
 
 // Payment validation schemas

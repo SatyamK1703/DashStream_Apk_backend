@@ -1,7 +1,7 @@
 
 import DeviceToken from '../models/deviceTokenModel.js';
 import Notification from '../models/notificationModel.js';
-import { messaging } from '../config/firebase.js';
+import FirebaseService from './FirebaseService.js';
 
 //Send a push notification to a user's devices
 
@@ -41,13 +41,14 @@ export const sendPushNotification = async (notificationData, userId) => {
     console.log('Push notification payload:', pushPayload);
     console.log(`Sending to ${deviceTokens.length} devices`);
 
-    // Send notification using Firebase Admin SDK
+    // Send notification using FirebaseService
     if (deviceTokens.length > 0) {
       try {
-        const messaging = firebaseApp.messaging();
-        const response = await messaging.sendMulticast({
-          tokens: deviceTokens.map(dt => dt.token),
-          ...pushPayload
+        const tokens = deviceTokens.map(dt => dt.token);
+        const response = await FirebaseService.sendMulticastNotification(tokens, {
+          title: pushPayload.notification.title,
+          body: pushPayload.notification.body,
+          data: pushPayload.data
         });
         
         console.log(`Successfully sent message: ${response.successCount} successful, ${response.failureCount} failed`);

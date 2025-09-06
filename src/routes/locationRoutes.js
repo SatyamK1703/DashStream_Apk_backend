@@ -14,6 +14,7 @@ import {
   subscribeToLocationUpdates,
   unsubscribeFromLocationUpdates
 } from '../services/locationService.js';
+import * as firebaseController from '../controllers/firebaseController.js';
 
 const router = express.Router();
 
@@ -281,6 +282,42 @@ router.post('/unsubscribe/:professionalId', authenticate, async (req, res) => {
     console.error('Error in unsubscribe route:', error);
     res.error({
       message: error.message || 'An error occurred while unsubscribing from location updates',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
+    });
+  }
+});
+
+/**
+ * @route POST /api/location/notifications/send
+ * @desc Send a notification to a device
+ * @access Private
+ */
+router.post('/notifications/send', authenticate, async (req, res, next) => {
+  try {
+    await firebaseController.sendNotification(req, res, next);
+  } catch (error) {
+    console.error('Error in send notification route:', error);
+    res.error({
+      message: error.message || 'An error occurred while sending notification',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
+    });
+  }
+});
+
+/**
+ * @route POST /api/location/notifications/send-multicast
+ * @desc Send a notification to multiple devices
+ * @access Private
+ */
+router.post('/notifications/send-multicast', authenticate, async (req, res, next) => {
+  try {
+    await firebaseController.sendMulticastNotification(req, res, next);
+  } catch (error) {
+    console.error('Error in send multicast notification route:', error);
+    res.error({
+      message: error.message || 'An error occurred while sending multicast notification',
       errorCode: error.errorCode,
       statusCode: error.statusCode || 500
     });
