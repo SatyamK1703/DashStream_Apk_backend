@@ -2,6 +2,7 @@ import Location from '../models/locationModel.js';
 import User from '../models/userModel.js';
 import mongoose from 'mongoose';
 import { sendPushNotification } from './notificationService.js';
+import FirebaseService from './FirebaseService.js';
 import { 
   withErrorHandling, 
   validateCoordinates, 
@@ -9,16 +10,6 @@ import {
   ErrorCodes 
 } from '../utils/locationErrorHandler.js';
 import AppError from '../utils/appError.js';
-import {
-  safeRead,
-  safeWrite,
-  batchWrite,
-  safeTransaction,
-  safeListener,
-  safeRemove,
-  pathExists,
-  FirebaseErrorCodes
-} from '../utils/firebaseUtils.js';
 
 const _updateProfessionalLocation = async (userId, locationData) => {
   // Validate coordinates
@@ -61,18 +52,8 @@ const _updateProfessionalLocation = async (userId, locationData) => {
     await location.updateLocation(locationData);
   }
   
-  // Invalidate caches related to this professional
-  professionalLocationCache.del(userId);
-  
-  // Clear history cache for this professional
-  const historyCacheKeys = locationHistoryCache.cache.keys()
-    .filter(key => key.startsWith(`history:${userId}:`));
-  
-  historyCacheKeys.forEach(key => locationHistoryCache.del(key));
-  
-  // Clear nearby cache as this professional's location changed
-  // This is a simple approach - in production you might want more targeted invalidation
-  nearbyProfessionalsCache.flush();
+  // Update location in Firebase using FirebaseService
+  await FirebaseService.updateLocation(userId, locationData);
   
   return location;
 };
@@ -92,6 +73,9 @@ const _updateProfessionalStatus = async (userId, status) => {
   
   // Update status
   await location.updateStatus(status);
+  
+  // Update status in Firebase using FirebaseService
+  await FirebaseService.updateStatus(userId, status);
   
   // If status is offline, update user availability as well
   if (status === 'offline') {
@@ -127,6 +111,9 @@ const _setTrackingEnabled = async (userId, enabled) => {
     location.trackingEnabled = enabled;
     await location.save();
   }
+  
+  // Update tracking enabled status in Firebase
+  await FirebaseService.updateTrackingEnabled(userId, enabled);
   
   return location;
 };

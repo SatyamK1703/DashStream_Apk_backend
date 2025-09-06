@@ -1,5 +1,4 @@
 import admin from "firebase-admin";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getDatabase } from "firebase-admin/database"; // ✅ modular API
 import { getMessaging } from "firebase-admin/messaging";
@@ -29,10 +28,9 @@ const initializeFirebase = () => {
 const app = initializeFirebase();
 
 // ✅ Use modular APIs with explicit URL
-const auth = getAuth(app);
 const firestore = getFirestore(app);
 const database = getDatabase(app, process.env.FIREBASE_DATABASE_URL);
 const messaging = getMessaging(app);
 
-export { app, initializeFirebase, auth, firestore, database, messaging,firebaseApp };
+export { app, initializeFirebase, firestore, database, messaging, firebaseApp };
 

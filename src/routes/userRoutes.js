@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   updateProfile,
+  updateProfileImage,
   deleteAccount,
   updateProfessionalProfile,
   getProfessionals,
@@ -29,6 +30,7 @@ router.use(protect);
 
 // Routes for all authenticated users
 router.patch('/update-profile', validateBody(userSchemas.updateProfile), updateProfile);
+router.patch('/update-profile-image',updateProfileImage);
 router.delete('/delete-account', deleteAccount);
 router.post('/addresses', validateBody(userSchemas.createAddress), createAddress);
 router.get('/addresses', getMyAddresses);

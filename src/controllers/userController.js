@@ -45,9 +45,6 @@ export const updateUser = asyncHandler(async (req, res, next) => {
 
 //PATCH /api/users/update-profile
 export const updateProfile = asyncHandler(async (req, res, next) => {
-
-
-  // 2) Filter unwanted fields that are not allowed to be updated
   const filteredBody = filterObj(
     req.body,
     'name',
@@ -55,8 +52,6 @@ export const updateProfile = asyncHandler(async (req, res, next) => {
     'vehicle',
     'profileImage'
   );
-
-  // 3) Update user document
   const updatedUser = await User.findByIdAndUpdate(req.user.id, filteredBody, {
     new: true,
     runValidators: true
@@ -81,13 +76,9 @@ export const updateProfileImage = asyncHandler(async (req, res, next) => {
 
   try {
     const user = await User.findById(req.user.id);
-
-    // If user already has a profile image, delete the old one from Cloudinary
     if (user.profileImage && user.profileImage.public_id) {
       await deleteImage(user.profileImage.public_id);
     }
-
-    // Update user with new profile image
     user.profileImage = {
       public_id: req.file.filename,
       url: req.file.path

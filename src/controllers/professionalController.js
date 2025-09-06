@@ -1,6 +1,5 @@
 import Booking from '../models/bookingModel.js';
 import User from '../models/userModel.js';
-import mongoose from 'mongoose';
 
 // Get all jobs for a professional
 export const getProfessionalJobs = async (req, res, next) => {
