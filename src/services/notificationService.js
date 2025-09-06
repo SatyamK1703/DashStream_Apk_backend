@@ -1,7 +1,7 @@
 
 import DeviceToken from '../models/deviceTokenModel.js';
 import Notification from '../models/notificationModel.js';
-import firebaseApp from '../config/firebase.js';
+import { messaging } from '../config/firebase.js';
 
 //Send a push notification to a user's devices
 

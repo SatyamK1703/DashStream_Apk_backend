@@ -19,11 +19,16 @@ import serviceRoutes from './routes/serviceRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import firebaseRoutes from './routes/firebaseRoutes.js';
+import membershipRoutes from './routes/membershipRoutes.js';
+import professionalRoutes from './routes/professionalRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorMiddleware.js';
 import { responseEnhancer } from './middleware/responseMiddleware.js';
 import { rawBodyMiddleware, saveRawBody } from './middleware/webhookMiddleware.js';
+import { apiResponseMiddleware, errorHandlerMiddleware } from './utils/apiResponse.js';
 
 // Load environment variables
 dotenv.config();
@@ -37,10 +42,6 @@ app.use(helmet());
 // Enable compression
 app.use(compression());
 
-// Development logging - only in development mode
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-}
 
 // Rate limiting
 const limiter = rateLimit({
@@ -58,13 +59,14 @@ app.use(saveRawBody);
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Response formatter middleware
-app.use(responseEnhancer);
+app.use(apiResponseMiddleware);
+app.use(responseEnhancer); // Keep for backward compatibility
 
 // CORS Configuration
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
     ? [process.env.CORS_ORIGIN || 'https://dashstream-app.com']
-    : ['http://localhost:19000', 'http://localhost:19001', 'http://localhost:19002', 'exp://*'],
+    : ['http://localhost:19000', 'http://localhost:19001', 'http://localhost:19002', 'exp://*',null],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -100,7 +102,7 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// API Routes
+// Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -108,20 +110,25 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/firebase', firebaseRoutes);
+app.use('/api/membership', membershipRoutes);
+app.use('/api/professional', professionalRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
-app.use(errorHandler);
+app.use(errorHandlerMiddleware);
+app.use(errorHandler); // Keep for backward compatibility
 
 // Health check route
 app.get('/api/health', (req, res) => {
-  res.sendSuccess(
-    {
+  res.success({
+    data: {
       environment: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || '1.0.0'
     },
-    'Server is running'
-  );
+    message: 'Server is running'
+  });
 });
 
 
@@ -138,14 +145,12 @@ if (process.env.NODE_ENV === 'production') {
 
 // 404 route
 app.all('*', (req, res, next) => {
-  res.status(404).json({
-    status: 'fail',
-    message: `Can't find ${req.originalUrl} on this server!`
-  });
+  res.notFound(`Can't find ${req.originalUrl} on this server!`);
 });
 
 // Global error handler
-app.use(errorHandler);
+app.use(errorHandlerMiddleware);
+app.use(errorHandler); // Keep for backward compatibility
 
 // Database connection
 mongoose

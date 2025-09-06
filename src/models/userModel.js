@@ -67,6 +67,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    status: {
+      type: String,
+      enum: ['available', 'busy', 'offline'],
+      default: 'available'
+    },
     rating: {
       type: Number,
       default: 0,
@@ -85,6 +90,33 @@ const userSchema = new mongoose.Schema(
       type: Number, // Years of experience
       default: 0
     },
+    // Location tracking fields
+    trackingEnabled: {
+      type: Boolean,
+      default: false
+    },
+    trackingSettings: {
+      updateInterval: {
+        type: Number,
+        default: 10000 // 10 seconds in milliseconds
+      },
+      significantChangeThreshold: {
+        type: Number,
+        default: 10 // 10 meters
+      },
+      batteryOptimizationEnabled: {
+        type: Boolean,
+        default: true
+      },
+      maxHistoryItems: {
+        type: Number,
+        default: 100
+      }
+    },
+    locationSubscribers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     // Customer specific fields
     vehicle: vehicleSchema,
     addresses: [

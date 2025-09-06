@@ -1,6 +1,8 @@
 import express from 'express';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { checkRole } from '../middleware/roleMiddleware.js';
+import { validateBody } from '../middleware/validationMiddleware.js';
+import { locationSchemas } from '../schemas/validationSchemas.js';
 import {
   updateProfessionalLocation,
   updateProfessionalStatus,
@@ -20,14 +22,9 @@ const router = express.Router();
  * @desc Update a professional's location
  * @access Private (Professional only)
  */
-router.post('/update', authenticate, checkRole('professional'), async (req, res) => {
+router.post('/update', authenticate, checkRole('professional'), validateBody(locationSchemas.updateLocation), async (req, res) => {
   try {
-    const { latitude, longitude, accuracy, speed, heading } = req.body;
-    
-    // Validate required fields
-    if (!latitude || !longitude) {
-      return res.status(400).json({ success: false, message: 'Latitude and longitude are required' });
-    }
+    const { latitude, longitude, accuracy, speed, heading, batteryLevel, networkType } = req.body;
     
     // Update location
     const location = await updateProfessionalLocation(req.user.id, {
@@ -35,18 +32,21 @@ router.post('/update', authenticate, checkRole('professional'), async (req, res)
       longitude,
       accuracy,
       speed,
-      heading
+      heading,
+      batteryLevel,
+      networkType
     });
     
-    res.status(200).json({
-      success: true,
-      data: location
+    res.success({
+      data: location,
+      message: 'Location updated successfully'
     });
   } catch (error) {
     console.error('Error in location update route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while updating location'
+    res.error({
+      message: error.message || 'An error occurred while updating location',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -56,27 +56,23 @@ router.post('/update', authenticate, checkRole('professional'), async (req, res)
  * @desc Update a professional's status
  * @access Private (Professional only)
  */
-router.post('/status', authenticate, checkRole('professional'), async (req, res) => {
+router.post('/status', authenticate, checkRole('professional'), validateBody(locationSchemas.updateStatus), async (req, res) => {
   try {
     const { status } = req.body;
-    
-    // Validate required fields
-    if (!status) {
-      return res.status(400).json({ success: false, message: 'Status is required' });
-    }
     
     // Update status
     const location = await updateProfessionalStatus(req.user.id, status);
     
-    res.status(200).json({
-      success: true,
-      data: location
+    res.success({
+      data: location,
+      message: 'Status updated successfully'
     });
   } catch (error) {
     console.error('Error in status update route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while updating status'
+    res.error({
+      message: error.message || 'An error occurred while updating status',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -86,27 +82,23 @@ router.post('/status', authenticate, checkRole('professional'), async (req, res)
  * @desc Enable or disable location tracking
  * @access Private (Professional only)
  */
-router.post('/tracking', authenticate, checkRole('professional'), async (req, res) => {
+router.post('/tracking', authenticate, checkRole('professional'), validateBody(locationSchemas.setTrackingEnabled), async (req, res) => {
   try {
     const { enabled } = req.body;
-    
-    // Validate required fields
-    if (enabled === undefined) {
-      return res.status(400).json({ success: false, message: 'Enabled flag is required' });
-    }
     
     // Update tracking status
     const location = await setTrackingEnabled(req.user.id, enabled);
     
-    res.status(200).json({
-      success: true,
-      data: location
+    res.success({
+      data: location,
+      message: `Location tracking ${enabled ? 'enabled' : 'disabled'} successfully`
     });
   } catch (error) {
     console.error('Error in tracking update route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while updating tracking status'
+    res.error({
+      message: error.message || 'An error occurred while updating tracking status',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -116,7 +108,7 @@ router.post('/tracking', authenticate, checkRole('professional'), async (req, re
  * @desc Update tracking settings
  * @access Private (Professional only)
  */
-router.post('/settings', authenticate, checkRole('professional'), async (req, res) => {
+router.post('/settings', authenticate, checkRole('professional'), validateBody(locationSchemas.updateTrackingSettings), async (req, res) => {
   try {
     const { updateInterval, significantChangeThreshold, batteryOptimizationEnabled, maxHistoryItems } = req.body;
     
@@ -128,15 +120,16 @@ router.post('/settings', authenticate, checkRole('professional'), async (req, re
       maxHistoryItems
     });
     
-    res.status(200).json({
-      success: true,
-      data: location
+    res.success({
+      data: location,
+      message: 'Tracking settings updated successfully'
     });
   } catch (error) {
     console.error('Error in settings update route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while updating settings'
+    res.error({
+      message: error.message || 'An error occurred while updating settings',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -153,15 +146,16 @@ router.get('/professional/:id', authenticate, async (req, res) => {
     // Get location
     const location = await getProfessionalLocation(professionalId);
     
-    res.status(200).json({
-      success: true,
-      data: location
+    res.success({
+      data: location,
+      message: 'Professional location retrieved successfully'
     });
   } catch (error) {
     console.error('Error in get location route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while getting location'
+    res.error({
+      message: error.message || 'An error occurred while getting location',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -179,15 +173,16 @@ router.get('/professional/:id/history', authenticate, async (req, res) => {
     // Get location history
     const history = await getProfessionalLocationHistory(professionalId, limit);
     
-    res.status(200).json({
-      success: true,
-      data: history
+    res.success({
+      data: history,
+      message: 'Location history retrieved successfully'
     });
   } catch (error) {
     console.error('Error in get location history route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while getting location history'
+    res.error({
+      message: error.message || 'An error occurred while getting location history',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -203,25 +198,39 @@ router.get('/nearby', authenticate, async (req, res) => {
     
     // Validate required fields
     if (!latitude || !longitude) {
-      return res.status(400).json({ success: false, message: 'Latitude and longitude are required' });
+      return res.validationFail({ message: 'Latitude and longitude are required', errors: { latitude: 'Required', longitude: 'Required' } });
     }
+    
+    // Validate coordinate format
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.validationFail({ message: 'Invalid coordinates provided', errors: { coordinates: 'Invalid format' } });
+    }
+    
+    // Parse maxDistance with a reasonable default and limit
+    let distance = maxDistance ? parseInt(maxDistance) : 10000; // Default 10km
+    distance = Math.min(distance, 50000); // Cap at 50km
     
     // Find nearby professionals
     const professionals = await findNearbyProfessionals(
-      { latitude: parseFloat(latitude), longitude: parseFloat(longitude) },
-      maxDistance ? parseInt(maxDistance) : 10000,
+      { latitude: lat, longitude: lng },
+      distance,
       status || 'available'
     );
     
-    res.status(200).json({
-      success: true,
-      data: professionals
+    res.success({
+      data: professionals,
+      message: 'Nearby professionals retrieved successfully',
+      meta: { distance: distance }
     });
   } catch (error) {
     console.error('Error in nearby professionals route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while finding nearby professionals'
+    res.error({
+      message: error.message || 'An error occurred while finding nearby professionals',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -238,15 +247,16 @@ router.post('/subscribe/:professionalId', authenticate, async (req, res) => {
     // Subscribe to updates
     const result = await subscribeToLocationUpdates(req.user.id, professionalId);
     
-    res.status(200).json({
-      success: true,
-      data: result
+    res.success({
+      data: result,
+      message: 'Successfully subscribed to location updates'
     });
   } catch (error) {
     console.error('Error in subscribe route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while subscribing to location updates'
+    res.error({
+      message: error.message || 'An error occurred while subscribing to location updates',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
@@ -263,15 +273,16 @@ router.post('/unsubscribe/:professionalId', authenticate, async (req, res) => {
     // Unsubscribe from updates
     const result = await unsubscribeFromLocationUpdates(req.user.id, professionalId);
     
-    res.status(200).json({
-      success: true,
-      data: result
+    res.success({
+      data: result,
+      message: 'Successfully unsubscribed from location updates'
     });
   } catch (error) {
     console.error('Error in unsubscribe route:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'An error occurred while unsubscribing from location updates'
+    res.error({
+      message: error.message || 'An error occurred while unsubscribing from location updates',
+      errorCode: error.errorCode,
+      statusCode: error.statusCode || 500
     });
   }
 });
