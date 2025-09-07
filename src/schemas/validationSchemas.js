@@ -327,6 +327,222 @@ export const serviceSchemas = {
   })
 };
 
+// Offer validation schemas
+export const offerSchemas = {
+  createOffer: Joi.object({
+    title: Joi.string()
+      .min(3)
+      .max(100)
+      .required()
+      .messages({
+        'string.min': 'Offer title must be at least 3 characters long',
+        'string.max': 'Offer title cannot exceed 100 characters',
+        'any.required': 'Offer title is required'
+      }),
+    description: Joi.string()
+      .min(10)
+      .max(500)
+      .required()
+      .messages({
+        'string.min': 'Offer description must be at least 10 characters long',
+        'string.max': 'Offer description cannot exceed 500 characters',
+        'any.required': 'Offer description is required'
+      }),
+    discount: Joi.number()
+      .min(0)
+      .max(100)
+      .required()
+      .messages({
+        'number.min': 'Discount cannot be negative',
+        'number.max': 'Discount cannot exceed 100%',
+        'any.required': 'Discount value is required'
+      }),
+    discountType: Joi.string()
+      .valid('percentage', 'fixed')
+      .default('percentage')
+      .messages({
+        'any.only': 'Discount type must be either percentage or fixed'
+      }),
+    maxDiscountAmount: Joi.number()
+      .positive()
+      .optional()
+      .messages({
+        'number.positive': 'Maximum discount amount must be positive'
+      }),
+    minOrderAmount: Joi.number()
+      .min(0)
+      .default(0)
+      .messages({
+        'number.min': 'Minimum order amount cannot be negative'
+      }),
+    validFrom: Joi.date()
+      .default(Date.now)
+      .messages({
+        'date.base': 'Valid from date must be a valid date'
+      }),
+    validUntil: Joi.date()
+      .greater(Joi.ref('validFrom'))
+      .required()
+      .messages({
+        'date.base': 'Valid until date must be a valid date',
+        'date.greater': 'Valid until date must be after valid from date',
+        'any.required': 'Valid until date is required'
+      }),
+    image: Joi.string().uri().optional(),
+    bannerImage: Joi.string().uri().optional(),
+    offerCode: Joi.string()
+      .max(20)
+      .uppercase()
+      .optional()
+      .messages({
+        'string.max': 'Offer code cannot exceed 20 characters'
+      }),
+    usageLimit: Joi.number()
+      .positive()
+      .optional()
+      .messages({
+        'number.positive': 'Usage limit must be positive'
+      }),
+    userUsageLimit: Joi.number()
+      .positive()
+      .default(1)
+      .messages({
+        'number.positive': 'User usage limit must be positive'
+      }),
+    applicableServices: Joi.array()
+      .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+      .optional()
+      .messages({
+        'string.pattern.base': 'Service ID must be a valid MongoDB ObjectId'
+      }),
+    applicableCategories: Joi.array()
+      .items(Joi.string().valid('car wash', 'bike wash', 'detailing', 'maintenance', 'customization', 'other'))
+      .optional()
+      .messages({
+        'any.only': 'Category must be one of: car wash, bike wash, detailing, maintenance, customization, other'
+      }),
+    vehicleType: Joi.string()
+      .valid('2 Wheeler', '4 Wheeler', 'Both')
+      .default('Both')
+      .messages({
+        'any.only': 'Vehicle type must be one of: 2 Wheeler, 4 Wheeler, Both'
+      }),
+    isFeatured: Joi.boolean().default(false),
+    priority: Joi.number()
+      .min(0)
+      .default(0)
+      .messages({
+        'number.min': 'Priority cannot be negative'
+      }),
+    terms: Joi.string().max(1000).optional()
+  }),
+  
+  updateOffer: Joi.object({
+    title: Joi.string()
+      .min(3)
+      .max(100)
+      .optional()
+      .messages({
+        'string.min': 'Offer title must be at least 3 characters long',
+        'string.max': 'Offer title cannot exceed 100 characters'
+      }),
+    description: Joi.string()
+      .min(10)
+      .max(500)
+      .optional()
+      .messages({
+        'string.min': 'Offer description must be at least 10 characters long',
+        'string.max': 'Offer description cannot exceed 500 characters'
+      }),
+    discount: Joi.number()
+      .min(0)
+      .max(100)
+      .optional()
+      .messages({
+        'number.min': 'Discount cannot be negative',
+        'number.max': 'Discount cannot exceed 100%'
+      }),
+    discountType: Joi.string()
+      .valid('percentage', 'fixed')
+      .optional()
+      .messages({
+        'any.only': 'Discount type must be either percentage or fixed'
+      }),
+    maxDiscountAmount: Joi.number()
+      .positive()
+      .optional()
+      .messages({
+        'number.positive': 'Maximum discount amount must be positive'
+      }),
+    minOrderAmount: Joi.number()
+      .min(0)
+      .optional()
+      .messages({
+        'number.min': 'Minimum order amount cannot be negative'
+      }),
+    validFrom: Joi.date()
+      .optional()
+      .messages({
+        'date.base': 'Valid from date must be a valid date'
+      }),
+    validUntil: Joi.date()
+      .greater(Joi.ref('validFrom'))
+      .optional()
+      .messages({
+        'date.base': 'Valid until date must be a valid date',
+        'date.greater': 'Valid until date must be after valid from date'
+      }),
+    image: Joi.string().uri().optional(),
+    bannerImage: Joi.string().uri().optional(),
+    offerCode: Joi.string()
+      .max(20)
+      .uppercase()
+      .optional()
+      .messages({
+        'string.max': 'Offer code cannot exceed 20 characters'
+      }),
+    usageLimit: Joi.number()
+      .positive()
+      .optional()
+      .messages({
+        'number.positive': 'Usage limit must be positive'
+      }),
+    userUsageLimit: Joi.number()
+      .positive()
+      .optional()
+      .messages({
+        'number.positive': 'User usage limit must be positive'
+      }),
+    applicableServices: Joi.array()
+      .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+      .optional()
+      .messages({
+        'string.pattern.base': 'Service ID must be a valid MongoDB ObjectId'
+      }),
+    applicableCategories: Joi.array()
+      .items(Joi.string().valid('car wash', 'bike wash', 'detailing', 'maintenance', 'customization', 'other'))
+      .optional()
+      .messages({
+        'any.only': 'Category must be one of: car wash, bike wash, detailing, maintenance, customization, other'
+      }),
+    vehicleType: Joi.string()
+      .valid('2 Wheeler', '4 Wheeler', 'Both')
+      .optional()
+      .messages({
+        'any.only': 'Vehicle type must be one of: 2 Wheeler, 4 Wheeler, Both'
+      }),
+    isActive: Joi.boolean().optional(),
+    isFeatured: Joi.boolean().optional(),
+    priority: Joi.number()
+      .min(0)
+      .optional()
+      .messages({
+        'number.min': 'Priority cannot be negative'
+      }),
+    terms: Joi.string().max(1000).optional()
+  })
+};
+
 // Notification validation schemas
 export const notificationSchemas = {
   createNotification: Joi.object({

@@ -108,9 +108,25 @@ export const verifyOtp = asyncHandler(async (req, res, next) => {
         verificationCheck = await twilioVerifyOtp(formattedPhone, otp);
     } catch (err) {
         console.error("Twilio Verification API Error:", err);
-        const appError = new AppError("The OTP verification service failed. Please try again.", 500);
-        appError.errorCode = "APP-500-962";
-        return next(appError);
+        
+        // Handle specific Twilio errors
+        if (err.code === 20404) {
+            const appError = new AppError("No pending verification found for this phone number. Please request a new OTP.", 400);
+            appError.errorCode = "APP-400-102";
+            return next(appError);
+        } else if (err.code === 60200) {
+            const appError = new AppError("The OTP is invalid. Please check and try again.", 400);
+            appError.errorCode = "APP-400-100";
+            return next(appError);
+        } else if (err.code === 60202) {
+            const appError = new AppError("The OTP has expired. Please request a new one.", 400);
+            appError.errorCode = "APP-400-101";
+            return next(appError);
+        } else {
+            const appError = new AppError(`OTP verification failed: ${err.message}`, 500);
+            appError.errorCode = "APP-500-962";
+            return next(appError);
+        }
     }
     
     if (!verificationCheck || verificationCheck.status !== "approved") {
