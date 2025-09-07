@@ -23,12 +23,19 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import membershipRoutes from './routes/membershipRoutes.js';
 import professionalRoutes from './routes/professionalRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import vehicleRoutes from './routes/vehicleRoutes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorMiddleware.js';
 import { responseEnhancer } from './middleware/responseMiddleware.js';
 import { rawBodyMiddleware, saveRawBody } from './middleware/webhookMiddleware.js';
 import { apiResponseMiddleware, errorHandlerMiddleware } from './utils/apiResponse.js';
+import { 
+  enhancedErrorHandler, 
+  securityHeaders, 
+  requestLogger, 
+  standardizeResponse 
+} from './middleware/enhancedErrorMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +45,7 @@ const app = express();
 
 // Set security HTTP headers
 app.use(helmet());
+app.use(securityHeaders);
 
 // Enable compression
 app.use(compression());
@@ -58,19 +66,63 @@ app.use(rawBodyMiddleware);
 app.use(saveRawBody);
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
+// Request logging and response standardization
+app.use(requestLogger);
+app.use(standardizeResponse);
+
 // Response formatter middleware
 app.use(apiResponseMiddleware);
 app.use(responseEnhancer); // Keep for backward compatibility
 
-// CORS Configuration
+// Enhanced CORS Configuration for Frontend Integration
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? [process.env.CORS_ORIGIN || 'https://dashstream-app.com']
-    : ['http://localhost:19000', 'http://localhost:19001', 'http://localhost:19002', 'exp://*',null],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = process.env.NODE_ENV === 'production'
+      ? [
+          process.env.CORS_ORIGIN || 'https://dashstream-app.com',
+          'https://dashstream-frontend.vercel.app',
+          'https://dashstream-admin.vercel.app'
+        ]
+      : [
+          'http://localhost:19000', 
+          'http://localhost:19001', 
+          'http://localhost:19002', 
+          'http://localhost:3000',
+          'http://localhost:8081',
+          'http://localhost:5000',
+          'exp://*',
+          'exp://192.168.*',
+          'exp://10.*',
+          'exp://172.*',
+        ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  maxAge: 86400 // 24 hours
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'X-Client-Version', 
+    'X-Platform', 
+    'X-Request-Time',
+    'X-API-Key',
+    'X-Device-ID',
+    'X-App-Version'
+  ],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count', 'X-Current-Page'],
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
@@ -114,8 +166,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/membership', membershipRoutes);
 app.use('/api/professional', professionalRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
-// Error handling middleware
+// Enhanced error handling middleware
+app.use(enhancedErrorHandler);
 app.use(errorHandlerMiddleware);
 app.use(errorHandler); // Keep for backward compatibility
 
@@ -163,8 +217,11 @@ mongoose
 
 // Start server
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : '0.0.0.0';
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Server running in ${process.env.NODE_ENV} mode on ${HOST}:${PORT}`);
+  console.log(`Local access: http://localhost:${PORT}`);
+  console.log(`Network access: http://192.168.1.10:${PORT}`);
 });
 
 // Handle unhandled promise rejections

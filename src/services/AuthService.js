@@ -3,28 +3,18 @@ import User from '../models/userModel.js';
 import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
 import { twilioSendOtp, twilioVerifyOtp } from "../utils/twilioVerify.js";
 
-/**
- * AuthService - Authentication service that handles Twilio OTP authentication
- * This service consolidates authentication functionality from authController.js
- */
+
 class AuthService {
-  /**
-   * Generate JWT token
-   * @param {string} id - User ID
-   * @returns {string} JWT token
-   */
+
+  //Generate JWT token
   static signToken(id) {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN,
     });
   }
 
-  /**
-   * Create and send JWT token in response
-   * @param {Object} user - User object
-   * @param {number} statusCode - HTTP status code
-   * @param {Object} res - Express response object
-   */
+ //Create and send JWT token in response
+
   static createSendToken(user, statusCode, res) {
     const token = this.signToken(user._id);
 
@@ -57,12 +47,8 @@ class AuthService {
     });
   }
 
-  /**
-   * Send OTP via Twilio
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   * @param {Function} next - Express next middleware function
-   */
+  //Send OTP via Twilio
+
   static sendOtp = asyncHandler(async (req, res, next) => {
     const { phone } = req.body;
 
@@ -108,12 +94,8 @@ class AuthService {
     }
   });
 
-  /**
-   * Verify OTP sent via Twilio
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   * @param {Function} next - Express next middleware function
-   */
+  //Verify OTP sent via Twilio
+
   static verifyOtp = asyncHandler(async (req, res, next) => {
     const { phone, otp } = req.body;
 

@@ -26,9 +26,9 @@ const protect = asyncHandler(async (req, res, next) => {
     return next(new AppError('The user belonging to this token no longer exists.', 401));
   }
 
-  // 4) Check if user changed password after the token was issued
-  if (currentUser.changedPasswordAfter(decoded.iat)) {
-    return next(new AppError('User recently changed password! Please log in again.', 401));
+  // 4) Check if user is active (for OTP-based auth, we don't check password changes)
+  if (!currentUser.active) {
+    return next(new AppError('This user account has been deactivated.', 401));
   }
 
   // Grant access to protected route

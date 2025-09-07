@@ -1,7 +1,4 @@
-/**
- * Validation schemas for API requests
- * Uses Joi for schema validation
- */
+
 import Joi from 'joi';
 
 // Auth validation schemas
@@ -591,3 +588,4 @@ export const membershipSchemas = {
     isActive: Joi.boolean().optional()
   })
 };
+

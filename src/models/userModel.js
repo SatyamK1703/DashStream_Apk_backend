@@ -2,18 +2,7 @@ import mongoose from "mongoose";
 import validator from "validator";
 
 
-const vehicleSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ["2 Wheeler", "4 Wheeler"],
-  },
-  brand: {
-    type: String,
-  },
-  model: {
-    type: String,
-  },
-});
+
 
 const userSchema = new mongoose.Schema(
   {
@@ -48,6 +37,10 @@ const userSchema = new mongoose.Schema(
     },
     otpExpires: {
       type: Date,
+    },
+    vehicle:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vehicle",
     },
     role: {
       type: String,
@@ -118,7 +111,6 @@ const userSchema = new mongoose.Schema(
       ref: 'User'
     }],
     // Customer specific fields
-    vehicle: vehicleSchema,
     addresses: [
       {
         type: mongoose.Schema.Types.ObjectId,
