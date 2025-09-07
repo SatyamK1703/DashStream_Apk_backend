@@ -97,6 +97,7 @@ const corsOptions = {
           'exp://192.168.*',
           'exp://10.*',
           'exp://172.*',
+          null,
         ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
