@@ -2,11 +2,8 @@ import * as paymentService from '../services/paymentService.js';
 import AppError from '../utils/appError.js';
 import { asyncHandler } from '../middleware/errorMiddleware.js';
 
-/**
- * Create a payment order
- * @route POST /api/payments/create-order
- * @access Private
- */
+//POST /api/payments/create-order
+
 export const createPaymentOrder = asyncHandler(async (req, res) => {
   const { bookingId, amount, notes } = req.body;
   
@@ -23,11 +20,8 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Verify payment
- * @route POST /api/payments/verify
- * @access Private
- */
+//POST /api/payments/verify
+
 export const verifyPayment = asyncHandler(async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
   
@@ -56,11 +50,8 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Handle Razorpay webhook
- * @route POST /api/payments/webhook
- * @access Public
- */
+//POST /api/payments/webhook
+
 export const handleWebhook = asyncHandler(async (req, res) => {
   const signature = req.headers['x-razorpay-signature'];
   
@@ -89,11 +80,8 @@ export const handleWebhook = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Get payment details
- * @route GET /api/payments/:id
- * @access Private
- */
+//GET /api/payments/:id
+ 
 export const getPayment = asyncHandler(async (req, res) => {
   const paymentId = req.params.id;
   const payment = await paymentService.getPaymentDetails(paymentId);
@@ -111,11 +99,8 @@ export const getPayment = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Get user payments
- * @route GET /api/payments/user
- * @access Private
- */
+//GET /api/payments/user
+ 
 export const getUserPayments = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   
@@ -132,11 +117,8 @@ export const getUserPayments = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Initiate refund
- * @route POST /api/payments/:id/refund
- * @access Private (Admin only)
- */
+//POST /api/payments/:id/refund
+
 export const initiateRefund = asyncHandler(async (req, res) => {
   const paymentId = req.params.id;
   const { amount, notes } = req.body;

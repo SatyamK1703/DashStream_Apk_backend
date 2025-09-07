@@ -17,9 +17,7 @@ import {
   getMyDevices,
   cleanupOldTokens
 } from '../controllers/deviceTokenController.js';
-import { protect, restrictTo } from '../middleware/authMiddleware.js';
-import { validateBody } from '../middleware/validationMiddleware.js';
-import { notificationSchemas } from '../schemas/validationSchemas.js';
+import { protect, restrictTo } from '../middleware/authMiddleware.js'; 
 
 const router = express.Router();
 
@@ -36,14 +34,14 @@ router.patch('/:id/read', markAsRead);
 router.delete('/:id', deleteNotification);
 
 // Device token routes
-router.post('/register-device', validateBody(notificationSchemas.registerDeviceToken), registerDeviceToken);
+router.post('/register-device', registerDeviceToken);
 router.delete('/deregister-device', deregisterDeviceToken);
 router.get('/my-devices', getMyDevices);
 
 // Admin only routes
 router.use(restrictTo('admin'));
 
-router.post('/', validateBody(notificationSchemas.createNotification), createNotification);
+router.post('/', createNotification);
 router.get('/all', getAllNotifications);
 router.delete('/expired', deleteExpiredNotifications);
 router.delete('/cleanup-tokens', cleanupOldTokens);

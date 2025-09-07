@@ -20,8 +20,6 @@ import {
   setDefaultAddress,
 } from '../controllers/userController.js';
 import { protect, restrictTo } from '../controllers/authController.js';
-import { validateBody, validateParams } from '../middleware/validationMiddleware.js';
-import { userSchemas } from '../schemas/validationSchemas.js';
 
 const router = express.Router();
 
@@ -29,12 +27,12 @@ const router = express.Router();
 router.use(protect);
 
 // Routes for all authenticated users
-router.patch('/update-profile', validateBody(userSchemas.updateProfile), updateProfile);
+router.patch('/update-profile', updateProfile);
 router.patch('/update-profile-image',updateProfileImage);
 router.delete('/delete-account', deleteAccount);
-router.post('/addresses', validateBody(userSchemas.createAddress), createAddress);
+router.post('/addresses', createAddress);
 router.get('/addresses', getMyAddresses);
-router.patch('/addresses/:id', validateBody(userSchemas.updateAddress), updateAddress);
+router.patch('/addresses/:id', updateAddress);
 router.delete('/addresses/:id', deleteAddress);
 router.patch('/addresses/:id/set-default', setDefaultAddress);
 
@@ -42,7 +40,6 @@ router.patch('/addresses/:id/set-default', setDefaultAddress);
 router.patch(
   '/professional-profile',
   restrictTo('professional'),
-  validateBody(userSchemas.updateProfessionalProfile),
   updateProfessionalProfile
 );
 

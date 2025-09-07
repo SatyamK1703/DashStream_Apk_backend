@@ -18,11 +18,8 @@ import * as firebaseController from '../controllers/firebaseController.js';
 
 const router = express.Router();
 
-/**
- * @route POST /api/location/update
- * @desc Update a professional's location
- * @access Private (Professional only)
- */
+//POST /api/location/update
+
 router.post('/update', authenticate, checkRole('professional'), validateBody(locationSchemas.updateLocation), async (req, res) => {
   try {
     const { latitude, longitude, accuracy, speed, heading, batteryLevel, networkType } = req.body;
@@ -52,11 +49,8 @@ router.post('/update', authenticate, checkRole('professional'), validateBody(loc
   }
 });
 
-/**
- * @route POST /api/location/status
- * @desc Update a professional's status
- * @access Private (Professional only)
- */
+//POST /api/location/status
+
 router.post('/status', authenticate, checkRole('professional'), validateBody(locationSchemas.updateStatus), async (req, res) => {
   try {
     const { status } = req.body;
@@ -78,11 +72,6 @@ router.post('/status', authenticate, checkRole('professional'), validateBody(loc
   }
 });
 
-/**
- * @route POST /api/location/tracking
- * @desc Enable or disable location tracking
- * @access Private (Professional only)
- */
 router.post('/tracking', authenticate, checkRole('professional'), validateBody(locationSchemas.setTrackingEnabled), async (req, res) => {
   try {
     const { enabled } = req.body;
@@ -104,11 +93,8 @@ router.post('/tracking', authenticate, checkRole('professional'), validateBody(l
   }
 });
 
-/**
- * @route POST /api/location/settings
- * @desc Update tracking settings
- * @access Private (Professional only)
- */
+//POST /api/location/settings
+
 router.post('/settings', authenticate, checkRole('professional'), validateBody(locationSchemas.updateTrackingSettings), async (req, res) => {
   try {
     const { updateInterval, significantChangeThreshold, batteryOptimizationEnabled, maxHistoryItems } = req.body;
@@ -135,11 +121,8 @@ router.post('/settings', authenticate, checkRole('professional'), validateBody(l
   }
 });
 
-/**
- * @route GET /api/location/professional/:id
- * @desc Get a professional's current location
- * @access Private
- */
+//GET /api/location/professional/:id
+
 router.get('/professional/:id', authenticate, async (req, res) => {
   try {
     const professionalId = req.params.id;
@@ -161,11 +144,8 @@ router.get('/professional/:id', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route GET /api/location/professional/:id/history
- * @desc Get a professional's location history
- * @access Private
- */
+//GET /api/location/professional/:id/history
+
 router.get('/professional/:id/history', authenticate, async (req, res) => {
   try {
     const professionalId = req.params.id;
@@ -188,11 +168,8 @@ router.get('/professional/:id/history', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route GET /api/location/nearby
- * @desc Find professionals near a specific location
- * @access Private
- */
+//GET /api/location/nearby
+
 router.get('/nearby', authenticate, async (req, res) => {
   try {
     const { latitude, longitude, maxDistance, status } = req.query;
@@ -236,11 +213,8 @@ router.get('/nearby', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route POST /api/location/subscribe/:professionalId
- * @desc Subscribe to a professional's location updates
- * @access Private
- */
+//POST /api/location/subscribe/:professionalId
+
 router.post('/subscribe/:professionalId', authenticate, async (req, res) => {
   try {
     const professionalId = req.params.professionalId;
@@ -262,11 +236,8 @@ router.post('/subscribe/:professionalId', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route POST /api/location/unsubscribe/:professionalId
- * @desc Unsubscribe from a professional's location updates
- * @access Private
- */
+//POST /api/location/unsubscribe/:professionalId
+
 router.post('/unsubscribe/:professionalId', authenticate, async (req, res) => {
   try {
     const professionalId = req.params.professionalId;
@@ -288,11 +259,8 @@ router.post('/unsubscribe/:professionalId', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route POST /api/location/notifications/send
- * @desc Send a notification to a device
- * @access Private
- */
+//POST /api/location/notifications/send
+
 router.post('/notifications/send', authenticate, async (req, res, next) => {
   try {
     await firebaseController.sendNotification(req, res, next);
@@ -306,11 +274,8 @@ router.post('/notifications/send', authenticate, async (req, res, next) => {
   }
 });
 
-/**
- * @route POST /api/location/notifications/send-multicast
- * @desc Send a notification to multiple devices
- * @access Private
- */
+//POST /api/location/notifications/send-multicast
+
 router.post('/notifications/send-multicast', authenticate, async (req, res, next) => {
   try {
     await firebaseController.sendMulticastNotification(req, res, next);

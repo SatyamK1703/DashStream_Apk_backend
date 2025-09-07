@@ -7,12 +7,8 @@ import { AppError } from '../middleware/errorMiddleware.js';
  * This service consolidates common user operations used across userController and professionalController
  */
 class UserService {
-  /**
-   * Update user profile
-   * @param {string} userId - User ID
-   * @param {Object} updateData - Data to update
-   * @returns {Promise<Object>} Updated user
-   */
+ //Update user profile
+ 
   static async updateUserProfile(userId, updateData) {
     // Find user by ID
     const user = await User.findById(userId);
@@ -39,12 +35,8 @@ class UserService {
     return user;
   }
   
-  /**
-   * Upload profile image to Cloudinary
-   * @param {Object} file - File object
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Updated user with profile image
-   */
+//Upload profile image to Cloudinary
+ 
   static async uploadProfileImage(file, userId) {
     if (!file) {
       throw new AppError('Please upload an image', 400);
@@ -80,11 +72,7 @@ class UserService {
     return user;
   }
   
-  /**
-   * Format user data for response
-   * @param {Object} user - User object
-   * @returns {Object} Formatted user data
-   */
+  //Format user data for response
   static formatUserData(user) {
     return {
       id: user._id,
@@ -104,12 +92,8 @@ class UserService {
     };
   }
   
-  /**
-   * Get user by ID with role validation
-   * @param {string} userId - User ID
-   * @param {string} role - Expected role (optional)
-   * @returns {Promise<Object>} User object
-   */
+  //Get user by ID with role validation
+ 
   static async getUserById(userId, role = null) {
     const user = await User.findById(userId);
     

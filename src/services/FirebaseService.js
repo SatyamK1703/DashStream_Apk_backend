@@ -1,17 +1,12 @@
 import { firestore, database, messaging } from "../config/firebase.js";
 import { AppError } from '../middleware/errorMiddleware.js';
 
-/**
- * FirebaseService - Service for Firebase-related operations
- * Handles notifications and real-time location tracking
- */
+//FirebaseService - Service for Firebase-related operations
+//Handles notifications and real-time location tracking
+
 class FirebaseService {
-  /**
-   * Update professional's location in Firebase Realtime Database
-   * @param {string} userId - User ID
-   * @param {Object} locationData - Location data (latitude, longitude, etc.)
-   * @returns {Promise<void>}
-   */
+
+//Update professional's location in Firebase Realtime Database 
   static async updateLocation(userId, locationData) {
     try {
       const { latitude, longitude, accuracy, speed, heading } = locationData;
@@ -59,12 +54,8 @@ class FirebaseService {
     }
   }
 
-  /**
-   * Update professional's status in Firebase
-   * @param {string} userId - User ID
-   * @param {string} status - Status ('available', 'busy', 'offline')
-   * @returns {Promise<void>}
-   */
+  //Update professional's status in Firebase
+
   static async updateStatus(userId, status) {
     try {
       if (!status || !['available', 'busy', 'offline'].includes(status)) {
@@ -103,12 +94,7 @@ class FirebaseService {
     }
   }
 
-  /**
-   * Send notification to a user
-   * @param {string} token - FCM token
-   * @param {Object} notification - Notification data
-   * @returns {Promise<Object>} Messaging response
-   */
+  //Send notification to a user
   static async sendNotification(token, notification) {
     try {
       const message = {
@@ -127,12 +113,9 @@ class FirebaseService {
     }
   }
 
-  /**
-   * Send notification to multiple users
-   * @param {Array<string>} tokens - FCM tokens
-   * @param {Object} notification - Notification data
-   * @returns {Promise<Object>} Messaging response
-   */
+  //Send notification to multiple users
+
+  
   static async sendMulticastNotification(tokens, notification) {
     try {
       const message = {
@@ -151,12 +134,8 @@ class FirebaseService {
     }
   }
   
-  /**
-   * Update tracking enabled status for a professional
-   * @param {string} userId - User ID
-   * @param {boolean} enabled - Whether tracking is enabled
-   * @returns {Promise<boolean>} Success status
-   */
+ //Update tracking enabled status for a professional
+ 
   static async updateTrackingEnabled(userId, enabled) {
     try {
       // Update tracking settings in Firestore

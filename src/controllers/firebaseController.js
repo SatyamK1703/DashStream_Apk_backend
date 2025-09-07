@@ -2,10 +2,7 @@ import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
 import FirebaseService from '../services/FirebaseService.js';
 import User from '../models/userModel.js';
 
-/**
- * Controller for Firebase-related operations
- * Handles location tracking and notifications
- */
+
 
 // Location Controllers
 export const updateLocation = asyncHandler(async (req, res, next) => {

@@ -1,5 +1,5 @@
 {
-  "name": "dashstream-backend",
+  "name": "dashsteam-backend",
   "version": "1.0.0",
   "description": "Backend server for DashStream application",
   "main": "src/server.js",

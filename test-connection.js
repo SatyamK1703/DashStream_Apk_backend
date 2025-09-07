@@ -50,3 +50,5 @@ console.log('\n🚀 Configuration check complete!');
 console.log('\nTo start the server:');
 console.log('npm run dev (for development)');
 console.log('npm start (for production)');
+console.log('\n📱 To test API connection from frontend:');
+console.log('cd ../DashStream_Apk && node test-api-connection.js');

@@ -4,11 +4,8 @@ import Booking from '../models/bookingModel.js';
 import AppError from '../utils/appError.js';
 import crypto from 'crypto';
 
-/**
- * Create a new Razorpay order
- * @param {Object} orderData - Order data including amount, currency, receipt, etc.
- * @returns {Promise<Object>} - Razorpay order object
- */
+//Create a new Razorpay order
+
 export const createOrder = async (bookingId, userId, amount, notes = {}) => {
   try {
     // Validate booking exists
@@ -57,11 +54,8 @@ export const createOrder = async (bookingId, userId, amount, notes = {}) => {
   }
 };
 
-/**
- * Verify payment signature
- * @param {Object} paymentData - Payment data including orderId, paymentId, signature
- * @returns {Promise<Boolean>} - True if signature is valid
- */
+//Verify payment signature
+
 export const verifyPaymentSignature = async (orderId, paymentId, signature) => {
   try {
     // Find the payment record
@@ -97,12 +91,8 @@ export const verifyPaymentSignature = async (orderId, paymentId, signature) => {
   }
 };
 
-/**
- * Verify webhook signature
- * @param {String} signature - Razorpay webhook signature
- * @param {String} body - Request body as string
- * @returns {Boolean} - True if signature is valid
- */
+//Verify webhook signature
+
 export const verifyWebhookSignature = (signature, body) => {
   try {
     const webhookSecret = getWebhookSecret();
@@ -122,11 +112,8 @@ export const verifyWebhookSignature = (signature, body) => {
   }
 };
 
-/**
- * Process webhook event
- * @param {Object} event - Webhook event data
- * @returns {Promise<Object>} - Updated payment record
- */
+ //Process webhook event
+
 export const processWebhookEvent = async (event) => {
   try {
     const { payload } = event;
@@ -200,11 +187,8 @@ export const processWebhookEvent = async (event) => {
   }
 };
 
-/**
- * Get payment details
- * @param {String} paymentId - Payment ID
- * @returns {Promise<Object>} - Payment details
- */
+//Get payment details
+
 export const getPaymentDetails = async (paymentId) => {
   try {
     const payment = await Payment.findById(paymentId);
@@ -218,11 +202,8 @@ export const getPaymentDetails = async (paymentId) => {
   }
 };
 
-/**
- * Get payment details by Razorpay order ID
- * @param {String} orderId - Razorpay order ID
- * @returns {Promise<Object>} - Payment details
- */
+//Get payment details by Razorpay order ID
+
 export const getPaymentByOrderId = async (orderId) => {
   try {
     const payment = await Payment.findOne({ razorpayOrderId: orderId });
@@ -236,13 +217,8 @@ export const getPaymentByOrderId = async (orderId) => {
   }
 };
 
-/**
- * Initiate refund
- * @param {String} paymentId - Payment ID
- * @param {Number} amount - Refund amount (optional, defaults to full amount)
- * @param {Object} notes - Refund notes
- * @returns {Promise<Object>} - Refund details
- */
+//Initiate refund
+
 export const initiateRefund = async (paymentId, amount = null, notes = {}) => {
   try {
     const payment = await Payment.findById(paymentId);

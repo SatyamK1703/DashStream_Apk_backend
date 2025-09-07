@@ -14,8 +14,6 @@ import {
   getOfferStats
 } from '../controllers/offerController.js';
 import { protect, restrictTo } from '../controllers/authController.js';
-import { validateBody, validateParams } from '../middleware/validationMiddleware.js';
-import { offerSchemas } from '../schemas/validationSchemas.js';
 
 const router = express.Router();
 
@@ -32,16 +30,16 @@ router.use(protect);
 router.post('/:id/use', useOffer); // Use an offer during booking
 
 // Routes for professionals and admins
-router.get('/', restrictTo('professional', 'admin'), getAllOffers);
-router.post('/', restrictTo('professional', 'admin'), validateBody(offerSchemas.createOffer), createOffer);
+router.get('/', restrictTo( 'admin'), getAllOffers);
+router.post('/', restrictTo( 'admin'),createOffer);
 
 router.route('/:id')
-  .patch(restrictTo('professional', 'admin'), validateBody(offerSchemas.updateOffer), updateOffer)
-  .delete(restrictTo('professional', 'admin'), deleteOffer);
+  .patch(restrictTo( 'admin'),updateOffer)
+  .delete(restrictTo( 'admin'), deleteOffer);
 
 // Activation/Deactivation routes
-router.patch('/:id/activate', restrictTo('professional', 'admin'), activateOffer);
-router.patch('/:id/deactivate', restrictTo('professional', 'admin'), deactivateOffer);
+router.patch('/:id/activate', restrictTo( 'admin'), activateOffer);
+router.patch('/:id/deactivate', restrictTo( 'admin'), deactivateOffer);
 
 // Admin only routes
 router.get('/stats', restrictTo('admin'), getOfferStats);
