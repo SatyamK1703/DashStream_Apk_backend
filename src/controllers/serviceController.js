@@ -1,23 +1,6 @@
 import Service from "../models/serviceModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
 
-// GET /api/services/popular
-export const getPopularServices = asyncHandler(async (req, res, next) => {
-  const limit = parseInt(req.query.limit) || 5;
-  
-  const services = await Service.find({ 
-    isActive: true,
-    isPopular: true 
-  })
-  .sort('-rating')
-  .limit(limit);
-  
-  res.status(200).json({
-    status: 'success',
-    results: services.length,
-    services
-  });
-});
 
 //GET /api/services/categories/:category
 export const getServicesByCategory = asyncHandler(async (req, res, next) => {
@@ -118,7 +101,6 @@ export const getAllServices = asyncHandler(async (req, res, next) => {
     services: services
   });
 });
-
 
  //GET /api/services/:id
 export const getService = asyncHandler(async (req, res, next) => {
@@ -325,3 +307,18 @@ export const getServiceStats = asyncHandler(async (req, res, next) => {
     }
   });
 });
+
+export const getPopularServices = asyncHandler(async (req, res, next) => {
+  const limit = parseInt(req.query.limit) || 6;
+
+  const services = await Service.find({ isActive: true, isPopular: true })
+    .limit(limit);
+
+  res.status(200).json({
+    status: 'success',
+    results: services.length,
+    services
+  });
+});
+
+

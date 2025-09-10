@@ -35,3 +35,42 @@ export const twilioVerifyOtp = async (phone, code) => {
     throw error;
   }
 };
+
+
+// import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+// import { initializeApp } from "firebase/app";
+
+// const firebaseConfig = {
+//   apiKey: "AIzaSyCEaEMoHyuy9hA-c2MsTkMA9nH4190DZfg",
+//   authDomain: "dashsteam-9c39b.firebaseapp.com",
+//   databaseURL: "https://dashsteam-9c39b-default-rtdb.asia-southeast1.firebasedatabase.app",
+//   projectId: "dashsteam-9c39b",
+//   storageBucket: "dashsteam-9c39b.firebasestorage.app",
+//   messagingSenderId: "288888418685",
+//   appId: "1:288888418685:web:ffa578114358d30210dc14",
+//   measurementId: "G-E98JRPEYKW"
+// };
+
+// // Init Firebase
+// const app = initializeApp(firebaseConfig);
+// const auth = getAuth(app);
+
+// // Setup reCAPTCHA
+// export function setupRecaptcha() {
+//   if (!window.recaptchaVerifier) {
+//     window.recaptchaVerifier = new RecaptchaVerifier('recaptcha-container', {}, auth);
+//   }
+// }
+
+// // Send OTP
+// export async function firebaseSendOtp(phone) {
+//   setupRecaptcha();
+//   const appVerifier = window.recaptchaVerifier;
+//   return await signInWithPhoneNumber(auth, phone, appVerifier);
+// }
+
+// // Verify OTP
+// export async function firebaseVerifyOtp(confirmationResult, otp) {
+//   const userCredential = await confirmationResult.confirm(otp);
+//   return userCredential.user; // Firebase user object
+// }

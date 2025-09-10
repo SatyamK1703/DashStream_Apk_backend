@@ -11,6 +11,7 @@ const deviceTokenSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true
+      // Remove index: true since we have schema.index() below
     },
     deviceType: {
       type: String,
@@ -37,6 +38,7 @@ const deviceTokenSchema = new mongoose.Schema(
 
 // Indexes for faster queries
 deviceTokenSchema.index({ user: 1 });
+// Unique index on token to prevent duplicates
 deviceTokenSchema.index({ token: 1 }, { unique: true });
 
 // Static method to register a new device token

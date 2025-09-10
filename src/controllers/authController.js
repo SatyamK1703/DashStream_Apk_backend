@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
 import passport from 'passport';
 import User from '../models/userModel.js';
-import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
+import { asyncHandler } from '../middleware/errorMiddleware.js';
+import AppError from '../utils/appError.js';
 import { twilioSendOtp, twilioVerifyOtp } from "../utils/twilioVerify.js";
 
 const signToken = (id) => {

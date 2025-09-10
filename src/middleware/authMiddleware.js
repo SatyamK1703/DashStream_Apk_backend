@@ -1,5 +1,6 @@
-import  User  from '../models/userModel.js';
-import { asyncHandler, AppError } from './errorMiddleware.js';
+import User from '../models/userModel.js';
+import { asyncHandler } from './errorMiddleware.js';
+import AppError from '../utils/appError.js';
 import jwt from 'jsonwebtoken';
 /**
  * Middleware to protect routes - verifies JWT token and attaches user to request

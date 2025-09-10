@@ -52,10 +52,7 @@ export const getVehicle = asyncHandler(async (req, res, next) => {
 
 // POST /api/vehicles - Create new vehicle
 export const createVehicle = asyncHandler(async (req, res, next) => {
-  // Add user to request body
   req.body.user = req.user.id;
-
-  // If this is set as default, ensure no other vehicle is default
   if (req.body.isDefault) {
     await Vehicle.updateMany(
       { user: req.user.id },
@@ -109,7 +106,6 @@ export const updateVehicle = asyncHandler(async (req, res, next) => {
   });
 });
 
-// DELETE /api/vehicles/:id - Delete vehicle (soft delete)
 export const deleteVehicle = asyncHandler(async (req, res, next) => {
   const vehicle = await Vehicle.findOne({
     _id: req.params.id,
@@ -120,11 +116,9 @@ export const deleteVehicle = asyncHandler(async (req, res, next) => {
     return next(new AppError('Vehicle not found', 404));
   }
 
-  // Soft delete by setting isActive to false
   vehicle.isActive = false;
   await vehicle.save();
 
-  // If this was the default vehicle, set another vehicle as default
   if (vehicle.isDefault) {
     const nextVehicle = await Vehicle.findOne({
       user: req.user.id,

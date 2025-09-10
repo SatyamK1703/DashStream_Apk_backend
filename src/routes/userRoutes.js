@@ -8,6 +8,7 @@ import {
   getProfessionalDetails,
   getAllUsers,
   getUser,
+  getCurrentUser,
   createUser,
   updateUser,
   deleteUser,
@@ -27,6 +28,7 @@ const router = express.Router();
 router.use(protect);
 
 // Routes for all authenticated users
+router.get('/me', getCurrentUser);
 router.patch('/update-profile', updateProfile);
 router.patch('/update-profile-image',updateProfileImage);
 router.delete('/delete-account', deleteAccount);

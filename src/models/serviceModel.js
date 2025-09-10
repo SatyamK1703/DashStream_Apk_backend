@@ -13,6 +13,10 @@ const serviceSchema = new mongoose.Schema(
       required: [true, 'Service must have a description'],
       trim: true
     },
+    longDescription: {
+      type: String,
+      trim: true
+    },
     category: {
       type: String,
       enum: [
@@ -34,7 +38,13 @@ const serviceSchema = new mongoose.Schema(
       type: String, // Keep as string like "45 mins"
       required: [true, 'Service must have a duration']
     },
-    image: String,
+    image: {
+      type:String,
+      required:true
+    },
+    banner:{type:String,
+    required:true
+    },
     vehicleType: {
       type: String,
       enum: ['2 Wheeler', '4 Wheeler', 'Both'],
@@ -58,26 +68,20 @@ const serviceSchema = new mongoose.Schema(
     numReviews: {
       type: Number,
       default: 0
-    },
-    reviewCount: Number, // For compatibility with your current data
+    }, // For compatibility with your current data
     tags: [String],
     estimatedTime: {
       type: Number,  // in minutes
       default: 60
     },
-    features: [String], // Matches your current array of features
-    inclusions: [String],
-    exclusions: [String],
-    faqs: [
-      {
-        question: String,
-        answer: String
-      }
-    ],
+    features: [String], 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
+    avaliableAreas:[{
+      pincode:String,
+    }]
   },
   {
     timestamps: true,

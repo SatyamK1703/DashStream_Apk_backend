@@ -11,11 +11,11 @@ const bookingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
     },
-    service: {
+    service: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Service",
       required: [true, "Booking must include a service"]
-    },
+    }],
     vehicle: {
       type: {
         type: String,
@@ -37,15 +37,19 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: [true, "Booking must have a scheduled time"]
     },
-    location: {
+  location: {
       address: {
-        type: String,
-        required: [true, "Booking must have a location address"]
-      },
+          name: { type: String, required: true },
+          address: { type: String, required: true },
+          city: { type: String, required: true },
+          landmark: String,
+          pincode: { type: String, required: true },
+        },
       coordinates: {
-        type: [Number]
-      }
-    },
+          type: [Number] // [longitude, latitude]
+        }
+},
+
     status: {
       type: String,
       enum: [

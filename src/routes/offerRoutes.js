@@ -27,10 +27,11 @@ router.get('/:id', getOffer);
 router.use(protect);
 
 // Routes for authenticated users
+router.get('/', getAllOffers); // Get all available offers for authenticated users
 router.post('/:id/use', useOffer); // Use an offer during booking
 
-// Routes for professionals and admins
-router.get('/', restrictTo( 'admin'), getAllOffers);
+// Admin only routes for offer management
+router.get('/admin', restrictTo('admin'), getAllOffers);
 router.post('/', restrictTo( 'admin'),createOffer);
 
 router.route('/:id')
