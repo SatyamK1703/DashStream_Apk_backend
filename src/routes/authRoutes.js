@@ -3,25 +3,12 @@ import {
   sendOtp,
   verifyOtp
 } from '../controllers/authController.js';
-import { protect, logout, refreshToken } from '../middleware/auth.js';
-import { validateBody } from '../middleware/validationMiddleware.js';
-import { authSchemas } from '../schemas/validationSchemas.js';
 
 const router = express.Router();
 
 // Public routes
-router.post('/send-otp', validateBody(authSchemas.sendOtp), sendOtp);
-router.post('/verify-otp', validateBody(authSchemas.verifyOtp), verifyOtp);
-router.post('/refresh-token', refreshToken);
-
-// Health check for authentication service
-router.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Authentication service is healthy',
-    timestamp: new Date().toISOString()
-  });
-});
+router.post('/send-otp', sendOtp);
+router.post('/verify-otp', verifyOtp);
 
 // Protected routes
 router.use(protect);

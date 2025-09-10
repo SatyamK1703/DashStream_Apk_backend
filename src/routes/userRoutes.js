@@ -31,6 +31,7 @@ router.get('/me', optionalAuth, getCurrentUser); // Allow checking auth status w
 router.use(protect);
 
 // Routes for all authenticated users
+router.get('/me', getCurrentUser);
 router.patch('/update-profile', updateProfile);
 router.patch('/update-profile-image',updateProfileImage);
 router.delete('/delete-account', deleteAccount);
