@@ -3,6 +3,7 @@ import {
   sendOtp,
   verifyOtp
 } from '../controllers/authController.js';
+import { protect, logout } from '../middleware/auth.js';
 
 const router = express.Router();
 
