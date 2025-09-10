@@ -30,12 +30,6 @@ import { errorHandler } from './middleware/errorMiddleware.js';
 import { responseEnhancer } from './middleware/responseMiddleware.js';
 import { rawBodyMiddleware, saveRawBody } from './middleware/webhookMiddleware.js';
 import { apiResponseMiddleware, errorHandlerMiddleware } from './utils/apiResponse.js';
-import { 
-  enhancedErrorHandler, 
-  securityHeaders, 
-  requestLogger, 
-  standardizeResponse 
-} from './middleware/enhancedErrorMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -43,36 +37,24 @@ dotenv.config();
 // Create Express app
 const app = express();
 
-// Set security HTTP headers
-app.use(helmet());
-app.use(securityHeaders);
+
 
 // Enable compression
 app.use(compression());
 
+// Security logging
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000, // 15 minutes by default
-  max: process.env.RATE_LIMIT_MAX || 100, // limit each IP to 100 requests per windowMs by default
-  message: 'Too many requests from this IP, please try again after some time',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
-app.use('/api', limiter);
+// Enhanced request validation and sanitization
 
 // Body parser with special handling for webhooks
 app.use(rawBodyMiddleware);
 app.use(saveRawBody);
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// Request logging and response standardization
-app.use(requestLogger);
-app.use(standardizeResponse);
-
 // Response formatter middleware
 app.use(apiResponseMiddleware);
 app.use(responseEnhancer); // Keep for backward compatibility
+
 
 // Enhanced CORS Configuration for Frontend Integration
 const corsOptions = {
@@ -84,7 +66,12 @@ const corsOptions = {
       ? [
           process.env.CORS_ORIGIN || 'https://dashstream-app.com',
           'https://dashstream-frontend.vercel.app',
-          'https://dashstream-admin.vercel.app'
+          'https://dashstream-admin.vercel.app',
+          'https://dash-stream-apk-backend.vercel.app',
+          'exp://*',
+          'http://*',
+          'https://*',
+          null
         ]
       : [
           'http://localhost:19000', 
@@ -93,18 +80,27 @@ const corsOptions = {
           'http://localhost:3000',
           'http://localhost:8081',
           'http://localhost:5000',
+          'http://192.168.*',
+          'http://10.*',
+          'http://172.*',
           'exp://*',
-          'exp://192.168.*',
-          'exp://10.*',
-          'exp://172.*',
-          null,
+          '*',
+          null
         ];
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Always allow for mobile apps and localhost
+    if (allowedOrigins.some(allowed => {
+      if (allowed === '*') return true;
+      if (allowed.endsWith('*')) {
+        const base = allowed.slice(0, -1);
+        return origin && origin.startsWith(base);
+      }
+      return origin === allowed;
+    })) {
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      console.log('CORS Info - Origin:', origin);
+      callback(null, true); // Allow all in development
     }
   },
   credentials: true,
@@ -169,27 +165,12 @@ app.use('/api/professional', professionalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 
-// Enhanced error handling middleware
-app.use(enhancedErrorHandler);
+
 app.use(errorHandlerMiddleware);
-app.use(errorHandler); // Keep for backward compatibility
+app.use(errorHandler);
 
-// Health check route
-app.get('/api/health', (req, res) => {
-  res.success({
-    data: {
-      environment: process.env.NODE_ENV,
-      timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '1.0.0'
-    },
-    message: 'Server is running'
-  });
-});
-
-
-// Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
-  // Set static folder
+
   const __dirname = path.resolve();
   app.use(express.static(path.join(__dirname, 'public')));
   
@@ -198,14 +179,15 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// 404 route
+// 404 route handler
 app.all('*', (req, res, next) => {
-  res.notFound(`Can't find ${req.originalUrl} on this server!`);
+  res.status(404).json({
+    success: false,
+    message: `Can't find ${req.originalUrl} on this server!`,
+    statusCode: 404
+  });
 });
 
-// Global error handler
-app.use(errorHandlerMiddleware);
-app.use(errorHandler); // Keep for backward compatibility
 
 // Database connection
 mongoose

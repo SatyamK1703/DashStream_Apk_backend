@@ -36,21 +36,16 @@ const notificationSchema = new mongoose.Schema(
       default: 'none'
     },
     actionParams: {
-      type: Object // Parameters for the action like bookingId, chatId, etc.
-    },
-    priority: {
-      type: String,
-      enum: ['high', 'default', 'low'],
-      default: 'default'
+      type: Object 
     },
     image: {
-      type: String // URL to an image to display in the notification
+      type: String 
     },
     expiresAt: {
       type: Date
     },
     meta: {
-      type: Object // For extra data like discount code, estimated time, etc.
+      type: Object 
     }
   },
   {

@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["customer", "professional", "admin"],
+      enum: ["customer", "professional","admin"],
       default: "customer",
     },
     profileComplete: {
@@ -65,25 +65,10 @@ const userSchema = new mongoose.Schema(
       enum: ['available', 'busy', 'offline'],
       default: 'available'
     },
-    rating: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5
-    },
     totalRatings: {
       type: Number,
       default: 0
     },
-    specialization: {
-      type: [String],
-      default: []
-    },
-    experience: {
-      type: Number, // Years of experience
-      default: 0
-    },
-    // Location tracking fields
     trackingEnabled: {
       type: Boolean,
       default: false
@@ -110,14 +95,14 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     }],
-    // Customer specific fields
-    addresses: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Address",
-      },
-    ],
-    // Common fields
+   addresses: [{
+      name: String,
+      address: String,
+      city: String,
+      landmark:String,
+      pincode: String,
+      isDefault: Boolean
+    }],
     fcmToken: {
       type: String,
       default: null
@@ -135,6 +120,27 @@ const userSchema = new mongoose.Schema(
       default: true,
       select: false,
     },
+    faqs: [
+      {
+        question: String,
+        answer: String,
+        type:{
+          type:String,
+          enum:["general","membership","payment","booking","other"],
+          default:"general"
+        }
+      }
+    ],
+    reviews:[{
+      reviewerName: String,
+      reviewText: String,
+      rating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5
+       },
+    }],
   },
   {
     timestamps: true,
@@ -142,28 +148,6 @@ const userSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
-
-userSchema.virtual("defaultAddress", {
-  ref: "Address",
-  localField: "_id",
-  foreignField: "customer",
-  justOne: true,
-  match: { isdefault: true },
-});
-
-// Method: Set default address
-userSchema.methods.setDefaultAddress = async function (addressId) {
-  await mongoose.model("Address").updateMany(
-    { customer: this._id },
-    { $set: { isdefault: false } }
-  );
-
-  await mongoose.model("Address").findByIdAndUpdate(addressId, {
-    $set: { isdefault: true },
-  });
-
-  return this.populate("addresses");
-};
 
 const User = mongoose.model("User", userSchema);
 export default User;

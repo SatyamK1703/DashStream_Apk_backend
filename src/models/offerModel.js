@@ -77,6 +77,11 @@ const offerSchema = new mongoose.Schema(
       uppercase: true,
       trim: true,
       maxlength: [20, 'Offer code cannot exceed 20 characters']
+      // Remove index: true since we have schema.index() below
+    },
+    isPromo:{
+      type: Boolean,
+      default: false
     },
     usageLimit: {
       type: Number,
@@ -116,15 +121,6 @@ const offerSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
-    isFeatured: {
-      type: Boolean,
-      default: false
-    },
-    priority: {
-      type: Number,
-      default: 0, // Higher number = higher priority for display
-      min: [0, 'Priority cannot be negative']
-    },
     terms: {
       type: String,
       default: ''
@@ -158,8 +154,7 @@ const offerSchema = new mongoose.Schema(
 
 // Indexes for better performance
 offerSchema.index({ validFrom: 1, validUntil: 1 });
-offerSchema.index({ isActive: 1, isFeatured: -1, priority: -1 });
-offerSchema.index({ offerCode: 1 });
+offerSchema.index({ isActive: 1 });
 offerSchema.index({ applicableCategories: 1 });
 offerSchema.index({ vehicleType: 1 });
 offerSchema.index({ title: 'text', description: 'text' });

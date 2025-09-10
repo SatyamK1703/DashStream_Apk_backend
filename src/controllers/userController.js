@@ -1,5 +1,6 @@
 import User from '../models/userModel.js';
-import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
+import { asyncHandler } from '../middleware/errorMiddleware.js';
+import AppError from '../utils/appError.js';
 import { cloudinary, upload } from '../utils/cloudinary.js';
 import Address from '../models/addressModel.js';
 
@@ -112,6 +113,105 @@ export const deleteUser = asyncHandler(async (req, res, next) => {
   });
 });
 
+// POST /api/v1/addresses
+export const createAddress = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return next(new AppError("User not found", 404));
+
+  const { name, address, city, pincode, isDefault } = req.body;
+
+  // If new address is default, reset old defaults
+  if (isDefault) {
+    user.addresses.forEach(addr => (addr.isDefault = false));
+  }
+
+  user.addresses.push({ name, address, city, pincode, isDefault });
+
+  await user.save();
+
+  res.status(201).json({
+    status: "success",
+    data: { addresses: user.addresses },
+  });
+});
+
+// GET /api/v1/addresses
+export const getMyAddresses = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user.id).select("addresses");
+  if (!user) return next(new AppError("User not found", 404));
+
+  res.status(200).json({
+    status: "success",
+    results: user.addresses.length,
+    data: { addresses: user.addresses },
+  });
+});
+
+// PATCH /api/v1/addresses/:addressId
+export const updateAddress = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return next(new AppError("User not found", 404));
+
+  const address = user.addresses.id(req.params.addressId);
+  if (!address) return next(new AppError("Address not found", 404));
+
+  const { name, address: addrLine, city, pincode, isDefault } = req.body;
+
+  if (isDefault) {
+    user.addresses.forEach(addr => (addr.isDefault = false));
+  }
+
+  address.name = name ?? address.name;
+  address.address = addrLine ?? address.address;
+  address.city = city ?? address.city;
+  address.pincode = pincode ?? address.pincode;
+  address.isDefault = isDefault ?? address.isDefault;
+
+  await user.save();
+
+  res.status(200).json({
+    status: "success",
+    data: { address },
+  });
+});
+
+// DELETE /api/v1/addresses/:addressId
+export const deleteAddress = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return next(new AppError("User not found", 404));
+
+  const address = user.addresses.id(req.params.addressId);
+  if (!address) return next(new AppError("Address not found", 404));
+
+  address.remove();
+  await user.save();
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});
+
+// PATCH /api/v1/addresses/:addressId/set-default
+export const setDefaultAddress = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return next(new AppError("User not found", 404));
+
+  const address = user.addresses.id(req.params.addressId);
+  if (!address) return next(new AppError("Address not found", 404));
+  user.addresses.forEach(addr => (addr.isDefault = false));
+
+  address.isDefault = true;
+
+  await user.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Default address updated",
+    data: { addresses: user.addresses },
+  });
+});
+
 //GET /api/users
 export const getAllUsers = asyncHandler(async (req, res, next) => {
   const users = await User.find();
@@ -125,8 +225,36 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
   });
 });
 
-//GET /api/users/:id
+// GET /api/users/me - Get current user
+export const getCurrentUser = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user.id).select('-otp -otpExpires');
 
+  if (!user) {
+    return next(new AppError('User not found', 404));
+  }
+
+  // Format user data for React Native app
+  const userData = {
+    id: user._id,
+    name: user.name || '',
+    email: user.email || '',
+    phone: user.phone,
+    role: user.role,
+    profileImage: user.profileImage?.url || '',
+    profileComplete: user.profileComplete || false,
+    isPhoneVerified: user.isPhoneVerified || false,
+    active: user.active
+  };
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user: userData
+    }
+  });
+});
+
+//GET /api/users/:id
 export const getUser = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.params.id);
 
@@ -154,34 +282,24 @@ export const deleteAccount = asyncHandler(async (req, res, next) => {
 
 // GET /api/users/professionals
 export const getProfessionals = asyncHandler(async (req, res, next) => {
-  const { serviceType, location, rating, availability } = req.query;
-  
-  // Build query
+  const { rating, availability } = req.query;
+
   const query = { role: 'professional', profileComplete: true };
-  
-  // Add filters if provided
-  if (serviceType) query['services.type'] = serviceType;
-  if (location) query.location = { $regex: location, $options: 'i' };
-  if (rating) query.rating = { $gte: parseFloat(rating) };
-  if (availability === 'true') query.isAvailable = true;
-  
-  const professionals = await User.find(query).select('-password');
-  
+  const professionals = await User.find(query)
+
   res.status(200).json({
     status: 'success',
     results: professionals.length,
-    data: {
-      professionals
-    }
+    data: { professionals }
   });
 });
 
-//GET /api/users/professionals/:id
+// GET /api/users/professionals/:id
 export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
   const professional = await User.findOne({
     _id: req.params.id,
     role: 'professional'
-  }).populate('reviews');
+  });
 
   if (!professional) {
     return next(new AppError('No professional found with that ID', 404));
@@ -189,57 +307,37 @@ export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    data: {
-      professional
-    }
+    data: { professional }
   });
 });
 
-//PATCH /api/users/professional-profile
+// PATCH /api/users/professional-profile
 export const updateProfessionalProfile = asyncHandler(async (req, res, next) => {
-  // Check if user is a professional
   if (req.user.role !== 'professional') {
     return next(new AppError('Only professionals can update professional profiles', 403));
   }
 
-  const {
-    bio,
-    experience,
-    services,
-    availability,
-    workingHours,
-    isAvailable
-  } = req.body;
+  // Only allow safe fields for now
+  const allowedUpdates = ['isAvailable', 'status', 'profileImage','phone'];
+  const updates = {};
+  for (let field of allowedUpdates) {
+    if (req.body[field] !== undefined) updates[field] = req.body[field];
+  }
 
-  // Update professional-specific fields
-  const updatedUser = await User.findByIdAndUpdate(
-    req.user.id,
-    {
-      bio,
-      experience,
-      services,
-      availability,
-      workingHours,
-      isAvailable
-    },
-    {
-      new: true,
-      runValidators: true
-    }
-  );
+  const updatedUser = await User.findByIdAndUpdate(req.user.id, updates, {
+    new: true,
+    runValidators: true
+  });
 
   res.status(200).json({
     status: 'success',
-    data: {
-      user: updatedUser
-    }
+    data: { user: updatedUser }
   });
 });
 
-//PATCH /api/users/toggle-availability
+// PATCH /api/users/toggle-availability
 export const toggleAvailability = asyncHandler(async (req, res, next) => {
-  // Check if user is a professional
-  if (req.user.role !== 'professional') {
+  if (req.user.role !== 'professional' && req.user.role !== 'admin') {
     return next(new AppError('Only professionals can update availability', 403));
   }
 
@@ -249,137 +347,25 @@ export const toggleAvailability = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    data: {
-      isAvailable: user.isAvailable
-    }
+    data: { isAvailable: user.isAvailable }
   });
 });
 
-//GET /api/users/stats
+// GET /api/users/stats
 export const getUserStats = asyncHandler(async (req, res, next) => {
   const stats = await User.aggregate([
     {
       $group: {
         _id: '$role',
         count: { $sum: 1 },
-        avgRating: { $avg: '$rating' }
+        avgRating: { $avg: { $avg: '$reviews.rating' } } // average of embedded ratings
       }
     }
   ]);
 
   res.status(200).json({
     status: 'success',
-    data: {
-      stats
-    }
+    data: { stats }
   });
 });
 
-
-//POST /api/v1/addresses
-export const createAddress = asyncHandler(async (req, res, next) => {
-  // 1) Add the current user's ID to the request body to link the address
-  req.body.customer = req.user.id;
-
-  // 2) Create the new address document
-  const newAddress = await Address.create(req.body);
-
-  // 3) Add the new address's ID to the user's `addresses` array
-  await User.findByIdAndUpdate(req.user.id, {
-    $push: { addresses: newAddress._id },
-  });
-
-  res.status(201).json({
-    status: 'success',
-    data: {
-      address: newAddress,
-    },
-  });
-});
-//GET /api/v1/addresses
-export const getMyAddresses = asyncHandler(async (req, res, next) => {
-  // Find all addresses that belong to the current user
-  const addresses = await Address.find({ customer: req.user.id });
-
-  res.status(200).json({
-    status: 'success',
-    results: addresses.length,
-    data: {
-      addresses,
-    },
-  });
-});
-
-//PATCH /api/v1/addresses/:id
-export const updateAddress = asyncHandler(async (req, res, next) => {
-  // Find the address by its ID AND ensure it belongs to the logged-in user
-  const address = await Address.findOneAndUpdate(
-    { _id: req.params.id, customer: req.user.id },
-    req.body,
-    {
-      new: true, // Return the updated document
-      runValidators: true,
-    }
-  );
-
-  if (!address) {
-    return next(new AppError('No address found with that ID for this user.', 404));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      address,
-    },
-  });
-});
-
-//DELETE /api/v1/addresses/:id
-export const deleteAddress = asyncHandler(async (req, res, next) => {
-  // 1) Find the address by ID AND ensure it belongs to the current user before deleting
-  const address = await Address.findOneAndDelete({
-    _id: req.params.id,
-    customer: req.user.id,
-  });
-
-  if (!address) {
-    return next(new AppError('No address found with that ID for this user.', 404));
-  }
-
-  // 2) Remove the address reference from the user's `addresses` array
-  await User.findByIdAndUpdate(req.user.id, {
-    $pull: { addresses: address._id },
-  });
-
-  // Use 204 No Content for successful deletions
-  res.status(204).json({
-    status: 'success',
-    data: null,
-  });
-});
-
-//PATCH /api/v1/addresses/:id/set-default
-export const setDefaultAddress = asyncHandler(async (req, res, next) => {
-    const addressId = req.params.id;
-    const userId = req.user.id;
-
-    // 1) Security Check: Ensure the address belongs to the user
-    const address = await Address.findOne({ _id: addressId, customer: userId });
-    if (!address) {
-        return next(new AppError('Address not found or does not belong to you.', 404));
-    }
-
-    // 2) Set all of the user's addresses to `isDefault: false`
-    await Address.updateMany({ customer: userId }, { isDefault: false });
-
-    // 3) Set the chosen address to `isDefault: true`
-    const defaultAddress = await Address.findByIdAndUpdate(addressId, { isDefault: true }, { new: true });
-
-    res.status(200).json({
-        status: 'success',
-        message: 'Default address has been updated.',
-        data: {
-            address: defaultAddress,
-        }
-    });
-});
