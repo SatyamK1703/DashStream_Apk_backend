@@ -15,7 +15,7 @@ async function testAuthFlow() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        phone: '+911234567890' // Test phone number
+        phone: '+919341526497' // Test phone number
       })
     });
 

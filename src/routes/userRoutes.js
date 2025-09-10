@@ -20,15 +20,17 @@ import {
   getMyAddresses,
   setDefaultAddress,
 } from '../controllers/userController.js';
-import { protect, restrictTo } from '../controllers/authController.js';
+import { protect, restrictTo, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Protect all routes after this middleware
+// Public routes that don't require authentication
+router.get('/me', optionalAuth, getCurrentUser); // Allow checking auth status without requiring login
+
+// Protect all other routes after this middleware  
 router.use(protect);
 
 // Routes for all authenticated users
-router.get('/me', getCurrentUser);
 router.patch('/update-profile', updateProfile);
 router.patch('/update-profile-image',updateProfileImage);
 router.delete('/delete-account', deleteAccount);

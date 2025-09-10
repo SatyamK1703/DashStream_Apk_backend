@@ -9,7 +9,7 @@ import {
   setDefaultVehicle,
   uploadVehicleImage,
 } from '../controllers/vehicleController.js';
-import { protect } from '../controllers/authController.js';
+import { protect } from '../middleware/authMiddleware.js';
 import { upload } from '../utils/cloudinary.js';
 
 const router = express.Router();

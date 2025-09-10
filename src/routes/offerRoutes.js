@@ -13,7 +13,7 @@ import {
   validateOfferCode,
   getOfferStats
 } from '../controllers/offerController.js';
-import { protect, restrictTo } from '../controllers/authController.js';
+import { protect, restrictTo } from '../middleware/auth.js';
 
 const router = express.Router();
 

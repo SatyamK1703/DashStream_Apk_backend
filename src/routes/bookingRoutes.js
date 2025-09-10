@@ -9,7 +9,8 @@ import {
   rateBooking,
   getBookingStats
 } from '../controllers/bookingController.js';
-import {restrictTo , protect } from '../controllers/authController.js';
+
+import { protect,restrictTo } from '../middleware/authMiddleware.js';
 
 
 const router = express.Router();

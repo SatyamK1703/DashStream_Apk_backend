@@ -225,8 +225,23 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
   });
 });
 
-// GET /api/users/me - Get current user
+// GET /api/users/me - Get current user (supports both authenticated and guest users)
 export const getCurrentUser = asyncHandler(async (req, res, next) => {
+  // Check if user is authenticated
+  if (!req.user) {
+    // User is not logged in - return guest status
+    return res.status(200).json({
+      status: 'success',
+      message: 'No user is currently logged in',
+      data: {
+        user: null,
+        isAuthenticated: false,
+        isGuest: true
+      }
+    });
+  }
+
+  // User is authenticated - fetch and return user data
   const user = await User.findById(req.user.id).select('-otp -otpExpires');
 
   if (!user) {
@@ -243,13 +258,17 @@ export const getCurrentUser = asyncHandler(async (req, res, next) => {
     profileImage: user.profileImage?.url || '',
     profileComplete: user.profileComplete || false,
     isPhoneVerified: user.isPhoneVerified || false,
-    active: user.active
+    active: user.active !== false,
+    lastActive: user.lastActive
   };
 
   res.status(200).json({
     status: 'success',
+    message: 'Current user data retrieved successfully',
     data: {
-      user: userData
+      user: userData,
+      isAuthenticated: true,
+      isGuest: false
     }
   });
 });
