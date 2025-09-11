@@ -162,12 +162,19 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Mount API routes
+app.use('/api/admins', adminRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/offers', offerRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/memberships', membershipRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/offers', offerRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/professionals', professionalRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/vehicles', vehicleRoutes);
+
 
 // Error handling middleware
 app.use(errorHandler);

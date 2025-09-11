@@ -105,11 +105,55 @@ export const createNotification = asyncHandler(async (req, res, next) => {
     return next(new AppError('You do not have permission to perform this action', 403));
   }
 
-  const newNotification = await Notification.create(req.body);
+  const {
+    recipient,
+    recipients,
+    title,
+    message,
+    type,
+    image,
+    actionType,
+    actionParams,
+    relatedId,
+    meta,
+    expiresAt,
+    priority
+  } = req.body;
+
+  if (!title || !message || !type) {
+    return next(new AppError('title, message and type are required', 400));
+  }
+
+  // Support sending to multiple recipients
+  if (Array.isArray(recipients) && recipients.length > 0) {
+    const created = [];
+    for (const userId of recipients) {
+      const n = await sendPushNotification(
+        { title, message, type, image, actionType, actionParams, relatedId, meta, expiresAt, priority },
+        userId
+      );
+      created.push(n);
+    }
+
+    return res.sendSuccess(
+      { notifications: created, count: created.length },
+      'Notifications created and push sent successfully',
+      201
+    );
+  }
+
+  if (!recipient) {
+    return next(new AppError('recipient is required', 400));
+  }
+
+  const notification = await sendPushNotification(
+    { title, message, type, image, actionType, actionParams, relatedId, meta, expiresAt, priority },
+    recipient
+  );
 
   res.sendSuccess(
-    { notification: newNotification },
-    'Notification created successfully',
+    { notification },
+    'Notification created and push sent successfully',
     201
   );
 });
