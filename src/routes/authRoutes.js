@@ -3,13 +3,15 @@ import {
   sendOtp,
   verifyOtp
 } from '../controllers/authController.js';
-import { protect, logout } from '../middleware/auth.js';
+import { protect, logout, refreshToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Public routes
 router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);
+// Refresh access token using refresh token
+router.post('/refresh-token', refreshToken);
 
 // Protected routes
 router.use(protect);

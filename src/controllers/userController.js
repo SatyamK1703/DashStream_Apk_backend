@@ -227,12 +227,23 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
 
 
   // User is authenticated - fetch and return user data
-// GET /api/users/me - Get current user
+// GET /api/users/me - Get current user (guest-friendly)
 export const getCurrentUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) {
-    return next(new AppError('User not found', 404));
+  // If no authenticated user (optionalAuth), return guest response
+  if (!req.user) {
+    return res.status(200).json({
+      status: 'success',
+      message: 'No user is currently logged in',
+      data: {
+        user: null,
+        isAuthenticated: false,
+        isGuest: true
+      }
+    });
   }
+
+  // Use the user from middleware (already fetched) to avoid extra DB call
+  const user = req.user;
 
   // Format user data for React Native app
   const userData = {
@@ -245,20 +256,16 @@ export const getCurrentUser = asyncHandler(async (req, res, next) => {
     profileComplete: user.profileComplete || false,
     isPhoneVerified: user.isPhoneVerified || false,
     active: user.active !== false,
-    lastActive: user.lastActive,
-
-    active: user.active
+    lastActive: user.lastActive
   };
 
-  res.status(200).json({
+  return res.status(200).json({
     status: 'success',
     message: 'Current user data retrieved successfully',
     data: {
       user: userData,
       isAuthenticated: true,
-      isGuest: false,},
-    data: {
-      user: userData
+      isGuest: false
     }
   });
 });
