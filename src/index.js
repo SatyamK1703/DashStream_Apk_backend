@@ -40,3 +40,4 @@ process.on('SIGTERM', () => {
   });
 });
 
+console.log("fine");
