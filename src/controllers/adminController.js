@@ -18,67 +18,91 @@ export const getDashboardStats = async (req, res, next) => {
     const bookingCount = await Booking.countDocuments();
     const serviceCount = await Service.countDocuments();
     
-    // Get revenue stats
-    const payments = await Payment.find({ status: 'completed' });
+    // Get revenue stats - using 'captured' status as per Payment model
+    const payments = await Payment.find({ status: 'captured' });
     const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
     
-    // Get recent bookings
-    const recentBookings = await Booking.find()
-      .sort('-createdAt')
-      .limit(5)
-      .populate('customer', 'name')
-      .populate('professional', 'name')
-      .populate('service', 'name');
+    // Get recent bookings with error handling
+    let recentBookings = [];
+    try {
+      recentBookings = await Booking.find()
+        .sort('-createdAt')
+        .limit(5)
+        .populate('customer', 'name')
+        .populate('professional', 'name')
+        .populate('service', 'name');
+    } catch (error) {
+      console.error('Error fetching recent bookings:', error.message);
+      recentBookings = [];
+    }
     
-    // Get top professionals by booking count
-    const topProfessionals = await Booking.aggregate([
-      { $group: {
-        _id: '$professional',
-        bookingCount: { $sum: 1 },
-        totalRevenue: { $sum: '$totalAmount' }
-      }},
-      { $sort: { bookingCount: -1 } },
-      { $limit: 5 }
-    ]);
+    // Get top professionals by booking count with error handling
+    let topProfessionals = [];
+    let formattedTopProfessionals = [];
+    try {
+      topProfessionals = await Booking.aggregate([
+        { $match: { professional: { $ne: null } } }, // Only bookings with assigned professionals
+        { $group: {
+          _id: '$professional',
+          bookingCount: { $sum: 1 },
+          totalRevenue: { $sum: '$totalAmount' }
+        }},
+        { $sort: { bookingCount: -1 } },
+        { $limit: 5 }
+      ]);
+      
+      if (topProfessionals.length > 0) {
+        // Populate professional details
+        const populatedTopProfessionals = await User.populate(topProfessionals, {
+          path: '_id',
+          select: 'name profileImage rating'
+        });
+        
+        // Format top professionals
+        formattedTopProfessionals = populatedTopProfessionals
+          .filter(item => item._id) // Filter out null professionals
+          .map(item => ({
+            id: item._id._id,
+            name: item._id.name,
+            image: item._id.profileImage?.url || '',
+            rating: item._id.rating || 0,
+            bookingCount: item.bookingCount,
+            revenue: item.totalRevenue || 0
+          }));
+      }
+    } catch (error) {
+      console.error('Error fetching top professionals:', error.message);
+      formattedTopProfessionals = [];
+    }
     
-    // Populate professional details
-    const populatedTopProfessionals = await User.populate(topProfessionals, {
-      path: '_id',
-      select: 'name profileImage rating'
-    });
-    
-    // Format top professionals
-    const formattedTopProfessionals = populatedTopProfessionals.map(item => ({
-      id: item._id._id,
-      name: item._id.name,
-      image: item._id.profileImage?.url || '',
-      rating: item._id.rating || 0,
-      bookingCount: item.bookingCount,
-      revenue: item.totalRevenue
-    }));
-    
-    // Get booking stats by day for the last 7 days
+    // Get booking stats by day for the last 7 days with error handling
     const last7Days = [...Array(7)].map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - i);
       return d.toISOString().split('T')[0];
     }).reverse();
     
-    const bookingsByDay = await Booking.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: new Date(last7Days[0]) }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          count: { $sum: 1 },
-          revenue: { $sum: '$totalAmount' }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+    let bookingsByDay = [];
+    try {
+      bookingsByDay = await Booking.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: new Date(last7Days[0]) }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 },
+            revenue: { $sum: '$totalAmount' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+    } catch (error) {
+      console.error('Error fetching daily booking stats:', error.message);
+      bookingsByDay = [];
+    }
     
     // Format chart data
     const dailyChartData = {
@@ -112,28 +136,34 @@ export const getDashboardStats = async (req, res, next) => {
       return d.toISOString().split('T')[0];
     }).reverse();
     
-    // Monthly data (last 6 months)
+    // Monthly data (last 6 months) with error handling
     const last6Months = [...Array(6)].map((_, i) => {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
       return d.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
     }).reverse();
     
-    const bookingsByMonth = await Booking.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: new Date(last6Months[0] + '-01') }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
-          count: { $sum: 1 },
-          revenue: { $sum: '$totalAmount' }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+    let bookingsByMonth = [];
+    try {
+      bookingsByMonth = await Booking.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: new Date(last6Months[0] + '-01') }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+            count: { $sum: 1 },
+            revenue: { $sum: '$totalAmount' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+    } catch (error) {
+      console.error('Error fetching monthly booking stats:', error.message);
+      bookingsByMonth = [];
+    }
     
     const monthlyChartData = {
       labels: last6Months.map(date => {
@@ -176,13 +206,13 @@ export const getDashboardStats = async (req, res, next) => {
         },
         recentBookings: recentBookings.map(booking => ({
           id: booking._id,
-          customerName: booking.customer.name,
+          customerName: booking.customer?.name || 'Unknown Customer',
           professionalName: booking.professional?.name || 'Unassigned',
-          serviceName: booking.service.name,
+          serviceName: booking.service?.name || 'Unknown Service',
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
-          amount: booking.totalAmount
+          amount: booking.totalAmount || 0
         })),
         topProfessionals: formattedTopProfessionals,
         chartData: {
@@ -779,6 +809,244 @@ export const deleteService = async (req, res, next) => {
     res.sendSuccess(
       { id: serviceId },
       'Service deleted successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all professionals (with filtering)
+export const getAllProfessionals = async (req, res, next) => {
+  try {
+    // Verify user is an admin
+    if (req.user.role !== 'admin') {
+      return res.sendError('Unauthorized. Only admins can access professional list.', 403);
+    }
+    
+    const { status, search, page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+    
+    // Build query for professionals only
+    const query = { role: 'professional' };
+    if (status) query.status = status;
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Execute query with pagination
+    const professionals = await User.find(query)
+      .select('name email phone profileImage createdAt isPhoneVerified status professionalInfo')
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    // Get total count for pagination
+    const total = await User.countDocuments(query);
+    
+    // Get booking counts for each professional
+    const professionalIds = professionals.map(p => p._id);
+    const bookingCounts = await Booking.aggregate([
+      { $match: { professional: { $in: professionalIds } } },
+      { $group: { _id: '$professional', count: { $sum: 1 } } }
+    ]);
+    
+    // Create a map for quick lookup
+    const bookingCountMap = {};
+    bookingCounts.forEach(item => {
+      bookingCountMap[item._id.toString()] = item.count;
+    });
+    
+    res.sendSuccess(
+      {
+        professionals: professionals.map(prof => ({
+          id: prof._id,
+          name: prof.name,
+          email: prof.email,
+          phone: prof.phone,
+          profileImage: prof.profileImage,
+          status: prof.status,
+          isPhoneVerified: prof.isPhoneVerified,
+          totalBookings: bookingCountMap[prof._id.toString()] || 0,
+          specializations: prof.professionalInfo?.specializations || [],
+          rating: prof.professionalInfo?.rating || 0,
+          createdAt: prof.createdAt
+        })),
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(total / limit)
+        }
+      },
+      'Professionals retrieved successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get professional details
+export const getProfessionalDetails = async (req, res, next) => {
+  try {
+    // Verify user is an admin
+    if (req.user.role !== 'admin') {
+      return res.sendError('Unauthorized. Only admins can access professional details.', 403);
+    }
+    
+    const { professionalId } = req.params;
+    
+    const professional = await User.findOne({ 
+      _id: professionalId,
+      role: 'professional'
+    });
+    
+    if (!professional) {
+      return res.sendError('Professional not found', 404);
+    }
+    
+    // Get professional's bookings
+    const bookings = await Booking.find({ professional: professionalId })
+      .sort('-createdAt')
+      .limit(10)
+      .populate('customer', 'name')
+      .populate('service', 'name');
+    
+    // Get professional's ratings and reviews
+    const reviews = await Booking.find({ 
+      professional: professionalId,
+      rating: { $exists: true }
+    })
+      .populate('customer', 'name')
+      .select('rating review customer createdAt')
+      .sort('-createdAt')
+      .limit(5);
+    
+    res.sendSuccess(
+      {
+        professional,
+        bookings: bookings.map(booking => ({
+          id: booking._id,
+          customerName: booking.customer.name,
+          serviceName: booking.service.name,
+          date: booking.scheduledDate,
+          status: booking.status,
+          amount: booking.totalAmount
+        })),
+        reviews: reviews.map(review => ({
+          id: review._id,
+          customerName: review.customer.name,
+          rating: review.rating,
+          review: review.review,
+          date: review.createdAt
+        }))
+      },
+      'Professional details retrieved successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update professional
+export const updateProfessional = async (req, res, next) => {
+  try {
+    // Verify user is an admin
+    if (req.user.role !== 'admin') {
+      return res.sendError('Unauthorized. Only admins can update professionals.', 403);
+    }
+    
+    const { professionalId } = req.params;
+    const { name, email, phone, status, specializations, hourlyRate } = req.body;
+    
+    const professional = await User.findOne({
+      _id: professionalId,
+      role: 'professional'
+    });
+    
+    if (!professional) {
+      return res.sendError('Professional not found', 404);
+    }
+    
+    // Update basic fields if provided
+    if (name) professional.name = name;
+    if (email) professional.email = email;
+    if (phone) professional.phone = phone;
+    if (status) professional.status = status;
+    
+    // Update professional info
+    if (specializations || hourlyRate) {
+      if (!professional.professionalInfo) {
+        professional.professionalInfo = {};
+      }
+      if (specializations) professional.professionalInfo.specializations = specializations;
+      if (hourlyRate) professional.professionalInfo.hourlyRate = hourlyRate;
+    }
+    
+    await professional.save();
+    
+    res.sendSuccess(
+      {
+        id: professional._id,
+        name: professional.name,
+        email: professional.email,
+        phone: professional.phone,
+        status: professional.status,
+        professionalInfo: professional.professionalInfo
+      },
+      'Professional updated successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update professional verification status
+export const updateProfessionalVerification = async (req, res, next) => {
+  try {
+    // Verify user is an admin
+    if (req.user.role !== 'admin') {
+      return res.sendError('Unauthorized. Only admins can update verification status.', 403);
+    }
+    
+    const { professionalId } = req.params;
+    const { isVerified, verificationNotes } = req.body;
+    
+    const professional = await User.findOne({
+      _id: professionalId,
+      role: 'professional'
+    });
+    
+    if (!professional) {
+      return res.sendError('Professional not found', 404);
+    }
+    
+    // Initialize professionalInfo if it doesn't exist
+    if (!professional.professionalInfo) {
+      professional.professionalInfo = {};
+    }
+    
+    // Update verification status
+    professional.professionalInfo.isVerified = isVerified;
+    if (verificationNotes) {
+      professional.professionalInfo.verificationNotes = verificationNotes;
+    }
+    professional.professionalInfo.verificationDate = new Date();
+    
+    await professional.save();
+    
+    res.sendSuccess(
+      {
+        id: professional._id,
+        name: professional.name,
+        isVerified: professional.professionalInfo.isVerified,
+        verificationNotes: professional.professionalInfo.verificationNotes,
+        verificationDate: professional.professionalInfo.verificationDate
+      },
+      `Professional ${isVerified ? 'verified' : 'unverified'} successfully`
     );
   } catch (error) {
     next(error);

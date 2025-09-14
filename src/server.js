@@ -37,7 +37,8 @@ dotenv.config();
 // Create Express app
 const app = express();
 
-
+// Enable strong ETags for conditional GETs (reduces bandwidth/DB for cached clients)
+app.set('etag', 'strong');
 
 // Enable compression
 app.use(compression());

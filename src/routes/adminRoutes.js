@@ -13,7 +13,11 @@ import {
   getAllServices,
   createService,
   updateService,
-  deleteService
+  deleteService,
+  getAllProfessionals,
+  getProfessionalDetails,
+  updateProfessional,
+  updateProfessionalVerification
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -51,5 +55,16 @@ router.route('/services')
 router.route('/services/:serviceId')
   .patch(updateService)
   .delete(deleteService);
+
+// Professional management routes
+router.route('/professionals')
+  .get(getAllProfessionals);
+
+router.route('/professionals/:professionalId')
+  .get(getProfessionalDetails)
+  .patch(updateProfessional);
+
+router.route('/professionals/:professionalId/verification')
+  .patch(updateProfessionalVerification);
 
 export default router;

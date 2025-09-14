@@ -63,5 +63,17 @@ export const responseEnhancer = (req, res, next) => {
     });
   };
 
+  // Add generic error response method
+  res.sendError = function(message = 'An error occurred', statusCode = 500, errorCode = null) {
+    const code = errorCode || `APP-${statusCode}-${Math.floor(Math.random() * 900) + 100}`;
+    return this.status(statusCode).json({
+      status: statusCode >= 400 && statusCode < 500 ? 'fail' : 'error',
+      statusCode,
+      message,
+      errorCode: code,
+      userFriendlyMessage: message
+    });
+  };
+
   next();
 };

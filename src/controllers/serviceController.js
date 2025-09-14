@@ -1,5 +1,6 @@
 import Service from "../models/serviceModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
+import { cacheInvalidate } from "../middleware/cache.js";
 
 
 //GET /api/services/categories/:category
@@ -26,96 +27,91 @@ export const getServicesByCategory = asyncHandler(async (req, res, next) => {
 
 //GET /api/services
 export const getAllServices = asyncHandler(async (req, res, next) => {
-  // Build query
-  let query = Service.find();
-  
-  // Filter by active status (default to active only)
+  // Build base filter
+  const filter = {};
+
+  // Active filter (default true)
   if (req.query.showInactive !== 'true') {
-    query = query.find({ isActive: true });
+    filter.isActive = true;
   }
-  
-  // Filter by category if provided
+
+  // Category filter
   if (req.query.category) {
-    query = query.find({ category: req.query.category });
+    filter.category = req.query.category;
   }
-  
-  // Filter by vehicle type if provided
+
+  // Vehicle type filter
   if (req.query.vehicleType) {
-    query = query.find({ vehicleType: req.query.vehicleType });
+    filter.vehicleType = req.query.vehicleType;
   }
-  
-  // Filter by price range if provided
+
+  // Price range filter
   if (req.query.minPrice && req.query.maxPrice) {
-    query = query.find({
-      price: { $gte: parseInt(req.query.minPrice), $lte: parseInt(req.query.maxPrice) }
-    });
+    filter.price = { $gte: parseInt(req.query.minPrice), $lte: parseInt(req.query.maxPrice) };
   } else if (req.query.minPrice) {
-    query = query.find({ price: { $gte: parseInt(req.query.minPrice) } });
+    filter.price = { $gte: parseInt(req.query.minPrice) };
   } else if (req.query.maxPrice) {
-    query = query.find({ price: { $lte: parseInt(req.query.maxPrice) } });
+    filter.price = { $lte: parseInt(req.query.maxPrice) };
   }
-  
-  // Filter by search term if provided
+
+  // Search filter
   if (req.query.search) {
-    query = query.find({
-      $or: [
-        { title: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } },
-        { tags: { $in: [new RegExp(req.query.search, 'i')] } }
-      ]
-    });
+    const regex = new RegExp(req.query.search, 'i');
+    filter.$or = [{ title: { $regex: regex } }, { description: { $regex: regex } }, { tags: { $in: [regex] } }];
   }
-  
-  // Filter by popular if requested
+
+  // Popular filter
   if (req.query.popular === 'true') {
-    query = query.find({ isPopular: true });
+    filter.isPopular = true;
   }
-  
-  // Sort by popularity, price, rating, or newest
-  if (req.query.sort) {
-    const sortBy = req.query.sort.split(',').join(' ');
-    query = query.sort(sortBy);
-  } else {
-    query = query.sort('-createdAt');
-  }
-  
-  // Pagination
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+
+  // Sort
+  const sort = req.query.sort ? req.query.sort.split(',').join(' ') : '-createdAt';
+
+  // Pagination with caps
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, parseInt(req.query.limit) || 10);
   const skip = (page - 1) * limit;
-  
-  query = query.skip(skip).limit(limit);
-  
-  // Execute query
-  const services = await query;
-  
-  // Get total count for pagination info
-  const totalCount = await Service.countDocuments();
-  
+
+  // Projection - only fields needed by UI (adjust as needed)
+  const projection = 'title price rating category image duration isPopular';
+
+  // Execute list query using lean (skips Mongoose doc hydration)
+  const [services, totalCount] = await Promise.all([
+    Service.find(filter).select(projection).lean().sort(sort).skip(skip).limit(limit),
+    Service.countDocuments(filter)
+  ]);
+
   res.status(200).json({
     status: 'success',
     results: services.length,
     totalCount,
     currentPage: page,
     totalPages: Math.ceil(totalCount / limit),
-    services: services
+    services
   });
 });
 
  //GET /api/services/:id
 export const getService = asyncHandler(async (req, res, next) => {
-  const service = await Service.findById(req.params.id);
+  // Use lean + select for primary doc
+  const service = await Service.findById(req.params.id)
+    .select('title description longDescription category price discountPrice image banner duration rating numReviews features tags')
+    .lean();
   
   if (!service) {
     return next(new AppError('No service found with that ID', 404));
   }
   
-  // Get related services in the same category
+  // Related services query (lean + projection)
   const relatedServices = await Service.find({
     category: service.category,
     _id: { $ne: service._id },
     isActive: true
-  }).limit(4);
+  })
+    .select('title price image rating')
+    .limit(4)
+    .lean();
   
   res.status(200).json({
     status: 'success',
@@ -133,6 +129,9 @@ export const createService = asyncHandler(async (req, res, next) => {
   }
   
   const newService = await Service.create(req.body);
+
+  // Invalidate caches related to services lists and categories
+  cacheInvalidate('/api/services');
   
   res.status(201).json({
     status: 'success',
@@ -144,7 +143,7 @@ export const createService = asyncHandler(async (req, res, next) => {
 
 //PATCH /api/services/:id
 export const updateService = asyncHandler(async (req, res, next) => {
-  const service = await Service.findById(req.params.id);
+  const service = await Service.findById(req.params.id).lean();
   
   if (!service) {
     return next(new AppError('No service found with that ID', 404));
@@ -166,6 +165,9 @@ export const updateService = asyncHandler(async (req, res, next) => {
       runValidators: true
     }
   );
+
+  // Invalidate caches related to services
+  cacheInvalidate('/api/services');
   
   res.status(200).json({
     status: 'success',
@@ -177,7 +179,7 @@ export const updateService = asyncHandler(async (req, res, next) => {
 
 //DELETE /api/services/:id
 export const deleteService = asyncHandler(async (req, res, next) => {
-  const service = await Service.findById(req.params.id);
+  const service = await Service.findById(req.params.id).lean();
   
   if (!service) {
     return next(new AppError('No service found with that ID', 404));
@@ -192,6 +194,9 @@ export const deleteService = asyncHandler(async (req, res, next) => {
   }
   
   await Service.findByIdAndDelete(req.params.id);
+
+  // Invalidate caches related to services
+  cacheInvalidate('/api/services');
   
   res.status(204).json({
     status: 'success',
@@ -201,9 +206,11 @@ export const deleteService = asyncHandler(async (req, res, next) => {
 
 //GET /api/services/top-services
 export const getTopServices = asyncHandler(async (req, res, next) => {
-  const services = await Service.find()
+  const services = await Service.find({ isActive: true })
+    .select('title price rating image')
     .sort('-popularity -rating')
-    .limit(5);
+    .limit(5)
+    .lean();
   
   res.status(200).json({
     status: 'success',
@@ -230,11 +237,13 @@ export const getServicesByCategoryId = asyncHandler(async (req, res, next) => {
 //GET /api/services/categories
 export const getServiceCategories = asyncHandler(async (req, res, next) => {
   const categories = await Service.aggregate([
+    { $match: { isActive: true } },
     {
       $group: {
         _id: '$category',
         count: { $sum: 1 },
-        services: { $push: { id: '$_id', name: '$name', price: '$price' } }
+        // use title instead of name (model uses title)
+        services: { $push: { id: '$_id', title: '$title', price: '$price' } }
       }
     },
     {
@@ -245,7 +254,7 @@ export const getServiceCategories = asyncHandler(async (req, res, next) => {
         _id: 0
       }
     }
-  ]);
+  ]).allowDiskUse(true);
   
   res.status(200).json({
     status: 'success',
@@ -263,15 +272,20 @@ export const searchServices = asyncHandler(async (req, res, next) => {
   }
   
   const searchQuery = req.query.q;
-  
+  const regex = new RegExp(searchQuery, 'i');
+
   const services = await Service.find({
     $or: [
-      { name: { $regex: searchQuery, $options: 'i' } },
-      { description: { $regex: searchQuery, $options: 'i' } },
-      { category: { $regex: searchQuery, $options: 'i' } },
-      { tags: { $regex: searchQuery, $options: 'i' } }
-    ]
-  });
+      { title: { $regex: regex } },
+      { description: { $regex: regex } },
+      { category: { $regex: regex } },
+      { tags: { $regex: regex } }
+    ],
+    isActive: true
+  })
+    .select('title price rating image category')
+    .limit(Math.min(20, parseInt(req.query.limit) || 10))
+    .lean();
   
   res.status(200).json({
     status: 'success',
