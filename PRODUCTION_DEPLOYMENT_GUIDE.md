@@ -5,7 +5,7 @@
 Your mobile app was getting "session expired" errors because of authentication token issues. Here's what was fixed:
 
 ### ✅ Issues Fixed:
-
+##twillio
 1. **Consolidated Authentication Logic** - Removed duplicate auth functions
 2. **Improved Token Handling** - Added refresh token mechanism
 3. **Production-Ready Configuration** - Added proper security headers and optimizations
