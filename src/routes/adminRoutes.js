@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, restrictTo } from '../middleware/authMiddleware.js';
+import { protect, restrictTo } from '../middleware/auth.js';
 import {
   getDashboardStats,
   getAllUsers,
@@ -10,15 +10,16 @@ import {
   getAllBookings,
   getBookingDetails,
   updateBooking,
-  getAllServices,
-  createService,
-  updateService,
-  deleteService,
   getAllProfessionals,
   getProfessionalDetails,
   updateProfessional,
-  updateProfessionalVerification
+  updateProfessionalVerification,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead
 } from '../controllers/adminController.js';
+
+// Service management now handled via /api/services routes
 
 const router = express.Router();
 
@@ -47,14 +48,8 @@ router.route('/bookings/:bookingId')
   .get(getBookingDetails)
   .patch(updateBooking);
 
-// Service management routes
-router.route('/services')
-  .get(getAllServices)
-  .post(createService);
-
-router.route('/services/:serviceId')
-  .patch(updateService)
-  .delete(deleteService);
+// Service management routes moved to /api/services 
+// Use /api/services endpoints with admin authentication instead
 
 // Professional management routes
 router.route('/professionals')
