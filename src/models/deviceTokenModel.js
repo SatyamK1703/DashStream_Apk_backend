@@ -4,64 +4,63 @@ const deviceTokenSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: "User",
+      required: true,
     },
     token: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
       // Remove index: true since we have schema.index() below
     },
     deviceType: {
       type: String,
-      enum: ['ios', 'android', 'web'],
-      required: true
+      enum: ["ios", "android", "web"],
+      required: true,
     },
     deviceInfo: {
       type: Object,
-      default: {}
+      default: {},
     },
     isActive: {
       type: Boolean,
-      default: true
+      default: true,
     },
     lastUsed: {
       type: Date,
-      default: Date.now
-    }
+      default: Date.now,
+    },
   },
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 
 // Indexes for faster queries
 deviceTokenSchema.index({ user: 1 });
-// Unique index on token to prevent duplicates
-deviceTokenSchema.index({ token: 1 }, { unique: true });
+// Note: token already has unique index from schema definition
 
 // Static method to register a new device token
-deviceTokenSchema.statics.registerToken = async function(userId, tokenData) {
+deviceTokenSchema.statics.registerToken = async function (userId, tokenData) {
   const { token, deviceType, deviceInfo } = tokenData;
-  
+
   // Upsert the token (update if exists, insert if not)
   return await this.findOneAndUpdate(
     { token },
-    { 
+    {
       user: userId,
       token,
       deviceType,
       deviceInfo,
       isActive: true,
-      lastUsed: Date.now()
+      lastUsed: Date.now(),
     },
     { upsert: true, new: true }
   );
 };
 
 // Static method to deactivate a token
-deviceTokenSchema.statics.deactivateToken = async function(token) {
+deviceTokenSchema.statics.deactivateToken = async function (token) {
   return await this.findOneAndUpdate(
     { token },
     { isActive: false },
@@ -70,23 +69,23 @@ deviceTokenSchema.statics.deactivateToken = async function(token) {
 };
 
 // Static method to get all active tokens for a user
-deviceTokenSchema.statics.getActiveTokensForUser = async function(userId) {
+deviceTokenSchema.statics.getActiveTokensForUser = async function (userId) {
   return await this.find({
     user: userId,
-    isActive: true
+    isActive: true,
   });
 };
 
 // Static method to clean up old tokens
-deviceTokenSchema.statics.cleanupOldTokens = async function(daysOld = 90) {
+deviceTokenSchema.statics.cleanupOldTokens = async function (daysOld = 90) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-  
+
   return await this.deleteMany({
-    lastUsed: { $lt: cutoffDate }
+    lastUsed: { $lt: cutoffDate },
   });
 };
 
-const DeviceToken = mongoose.model('DeviceToken', deviceTokenSchema);
+const DeviceToken = mongoose.model("DeviceToken", deviceTokenSchema);
 
 export default DeviceToken;
