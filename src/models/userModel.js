@@ -1,9 +1,6 @@
 import mongoose from "mongoose";
 import validator from "validator";
 
-
-
-
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -24,7 +21,6 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: [true, "Phone number is required"],
-      unique: true,
       validate: {
         validator: function (val) {
           return /^\+?[1-9]\d{9,14}$/.test(val);
@@ -38,13 +34,13 @@ const userSchema = new mongoose.Schema(
     otpExpires: {
       type: Date,
     },
-    vehicle:{
+    vehicle: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
     },
     role: {
       type: String,
-      enum: ["customer", "professional","admin"],
+      enum: ["customer", "professional", "admin"],
       default: "customer",
     },
     profileComplete: {
@@ -62,54 +58,58 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['available', 'busy', 'offline'],
-      default: 'available'
+      enum: ["available", "busy", "offline"],
+      default: "available",
     },
     totalRatings: {
       type: Number,
-      default: 0
+      default: 0,
     },
     trackingEnabled: {
       type: Boolean,
-      default: false
+      default: false,
     },
     trackingSettings: {
       updateInterval: {
         type: Number,
-        default: 10000 // 10 seconds in milliseconds
+        default: 10000, // 10 seconds in milliseconds
       },
       significantChangeThreshold: {
         type: Number,
-        default: 10 // 10 meters
+        default: 10, // 10 meters
       },
       batteryOptimizationEnabled: {
         type: Boolean,
-        default: true
+        default: true,
       },
       maxHistoryItems: {
         type: Number,
-        default: 100
-      }
+        default: 100,
+      },
     },
-    locationSubscribers: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }],
-   addresses: [{
-      name: String,
-      address: String,
-      city: String,
-      landmark:String,
-      pincode: String,
-      isDefault: Boolean
-    }],
+    locationSubscribers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    addresses: [
+      {
+        name: String,
+        address: String,
+        city: String,
+        landmark: String,
+        pincode: String,
+        isDefault: Boolean,
+      },
+    ],
     fcmToken: {
       type: String,
-      default: null
+      default: null,
     },
     lastActive: {
       type: Date,
-      default: Date.now
+      default: Date.now,
     },
     profileImage: {
       public_id: String,
@@ -124,23 +124,25 @@ const userSchema = new mongoose.Schema(
       {
         question: String,
         answer: String,
-        type:{
-          type:String,
-          enum:["general","membership","payment","booking","other"],
-          default:"general"
-        }
-      }
+        type: {
+          type: String,
+          enum: ["general", "membership", "payment", "booking", "other"],
+          default: "general",
+        },
+      },
     ],
-    reviews:[{
-      reviewerName: String,
-      reviewText: String,
-      rating: {
-        type: Number,
-        default: 0,
-        min: 0,
-        max: 5
-       },
-    }],
+    reviews: [
+      {
+        reviewerName: String,
+        reviewText: String,
+        rating: {
+          type: Number,
+          default: 0,
+          min: 0,
+          max: 5,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -148,6 +150,36 @@ const userSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// PERFORMANCE OPTIMIZATION: Critical Indexes for DashStream
+// Primary lookup indexes
+userSchema.index({ phone: 1 }, { unique: true }); // Phone number lookups (auth)
+userSchema.index({ email: 1 }, { sparse: true }); // Email lookups (sparse for optional field)
+userSchema.index({ role: 1 }); // Role-based queries (professional, customer, admin)
+
+// Professional-specific indexes
+userSchema.index({ role: 1, isAvailable: 1 }); // Find available professionals
+userSchema.index({ role: 1, status: 1 }); // Professional status queries
+userSchema.index({ role: 1, totalRatings: -1 }); // Sort professionals by rating
+
+// Location and tracking indexes
+userSchema.index({ trackingEnabled: 1 }); // Active tracking users
+userSchema.index({ locationSubscribers: 1 }); // Location subscription queries
+
+// Authentication and session indexes
+userSchema.index({ isPhoneVerified: 1 }); // Verified users
+userSchema.index({ lastActive: -1 }); // Sort by activity
+userSchema.index({ active: 1 }); // Active user filter
+
+// Profile and status indexes
+userSchema.index({ profileComplete: 1 }); // Profile completion checks
+userSchema.index({ "addresses.pincode": 1 }); // Address-based location queries
+userSchema.index({ "addresses.isDefault": 1 }); // Default address lookup
+
+// Compound indexes for common query patterns
+userSchema.index({ role: 1, active: 1, isAvailable: 1 }); // Active available professionals
+userSchema.index({ phone: 1, isPhoneVerified: 1 }); // Auth verification
+userSchema.index({ role: 1, lastActive: -1 }); // Recent active professionals
 
 const User = mongoose.model("User", userSchema);
 export default User;

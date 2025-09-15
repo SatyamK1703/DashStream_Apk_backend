@@ -1,21 +1,20 @@
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-dotenv.config({ path: './.env' });
-import app from './server.js';
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+import app from "./server.js";
+dotenv.config({ path: "./.env" });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', err => {
-  console.log('UNCAUGHT EXCEPTION!  Shutting down...');
+process.on("uncaughtException", (err) => {
+  console.log("UNCAUGHT EXCEPTION!  Shutting down...");
   console.log(err.name, err.message);
   process.exit(1);
 });
 
-
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log('DB connection successful'))
-  .catch(err => console.log('Error connecting to DB:', err));
+  .then(() => console.log("DB connection successful"))
+  .catch((err) => console.log("Error connecting to DB:", err));
 
 // Start server
 const port = process.env.PORT || 5000;
@@ -24,8 +23,8 @@ const server = app.listen(port, () => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', err => {
-  console.log('UNHANDLED REJECTION!  Shutting down...');
+process.on("unhandledRejection", (err) => {
+  console.log("UNHANDLED REJECTION!  Shutting down...");
   console.log(err.name, err.message);
   server.close(() => {
     process.exit(1);
@@ -33,11 +32,9 @@ process.on('unhandledRejection', err => {
 });
 
 // Handle SIGTERM signal
-process.on('SIGTERM', () => {
-  console.log(' SIGTERM RECEIVED. Shutting down gracefully');
+process.on("SIGTERM", () => {
+  console.log(" SIGTERM RECEIVED. Shutting down gracefully");
   server.close(() => {
-    console.log('Process terminated!');
+    console.log("Process terminated!");
   });
 });
-
-console.log("fine");
