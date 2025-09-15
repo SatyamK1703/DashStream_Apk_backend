@@ -6,15 +6,19 @@
   "type": "module",
   "scripts": {
     "prebuild": "npm install @grpc/grpc-js",
-    "start": " node src/server.production.js",
-    "start:dev": " node src/server.js",
-    "dev": " nodemon src/server.js",
+    "start": "node src/server.production.js",
+    "start:dev": "node src/server.js",
+    "dev": "nodemon src/server.js",
     "prod": "nodemon src/server.production.js",
     "start:windows": "node src/server.production.js",
     "dev:windows": "nodemon src/server.js",
     "build": "node deploy.js",
     "test": "jest",
-    "test:api": "node src/tests/run-tests.js"
+    "test:api": "node src/tests/run-tests.js",
+    "test:routes": "node test-all-routes.js",
+    "test:integration": "node test-integration.js",
+    "setup": "node setup.js",
+    "quick-start": "node quick-start.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.3",

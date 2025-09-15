@@ -142,22 +142,36 @@ export const protect = asyncHandler(async (req, res, next) => {
   // 1. Extract token from request
   const token = extractToken(req);
 
+  console.log('🔐 Protect middleware called for:', req.path);
+  console.log('🔍 Token found:', !!token);
+
   if (!token) {
+    console.log('❌ No token provided');
     return next(new AppError('You are not logged in. Please log in to get access.', 401));
   }
 
   try {
     // 2. Verify token
     const decoded = verifyToken(token);
+    console.log('✅ Token decoded successfully, user ID:', decoded.id);
 
     // 3. Check if user still exists
     const currentUser = await User.findById(decoded.id).select('+active');
     if (!currentUser) {
+      console.log('❌ User not found in database:', decoded.id);
       return next(new AppError('The user belonging to this token no longer exists.', 401));
     }
 
+    console.log('✅ User found:', {
+      id: currentUser._id,
+      name: currentUser.name,
+      phone: currentUser.phone,
+      active: currentUser.active
+    });
+
     // 4. Check if user account is active
     if (currentUser.active === false) {
+      console.log('❌ User account is deactivated');
       return next(new AppError('Your account has been deactivated. Please contact support.', 401));
     }
 
@@ -168,6 +182,7 @@ export const protect = asyncHandler(async (req, res, next) => {
     // 6. Grant access to protected route
     req.user = currentUser;
     req.token = token;
+    console.log('✅ User authenticated successfully, proceeding to route');
     next();
 
   } catch (error) {

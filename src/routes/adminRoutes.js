@@ -10,14 +10,6 @@ import {
   getAllBookings,
   getBookingDetails,
   updateBooking,
-  getAllServices,
-  createService,
-  updateService,
-  deleteService,
-  getAllProfessionals,
-  getProfessionalDetails,
-  updateProfessional,
-  updateProfessionalVerification
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -48,23 +40,6 @@ router.route('/bookings/:bookingId')
   .patch(updateBooking);
 
 // Service management routes
-router.route('/services')
-  .get(getAllServices)
-  .post(createService);
 
-router.route('/services/:serviceId')
-  .patch(updateService)
-  .delete(deleteService);
-
-// Professional management routes
-router.route('/professionals')
-  .get(getAllProfessionals);
-
-router.route('/professionals/:professionalId')
-  .get(getProfessionalDetails)
-  .patch(updateProfessional);
-
-router.route('/professionals/:professionalId/verification')
-  .patch(updateProfessionalVerification);
 
 export default router;

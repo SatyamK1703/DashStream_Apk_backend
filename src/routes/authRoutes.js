@@ -21,6 +21,25 @@ router.post('/logout', logout);
 
 // Get current user info
 router.get('/me', (req, res) => {
+  console.log('📋 /auth/me endpoint called');
+  console.log('🔍 req.user exists:', !!req.user);
+  console.log('🔍 req.user data:', req.user ? {
+    id: req.user._id,
+    name: req.user.name,
+    phone: req.user.phone,
+    role: req.user.role
+  } : 'No user data');
+
+  if (!req.user) {
+    console.error('❌ No user found in request object');
+    return res.status(401).json({
+      status: 'error',
+      message: 'User not authenticated',
+      data: undefined,
+      params: undefined
+    });
+  }
+
   const userData = {
     id: req.user._id,
     name: req.user.name || '',
@@ -33,6 +52,8 @@ router.get('/me', (req, res) => {
     lastActive: req.user.lastActive,
     addresses: req.user.addresses || []
   };
+
+  console.log('✅ Sending user data:', userData);
 
   res.status(200).json({
     status: 'success',
