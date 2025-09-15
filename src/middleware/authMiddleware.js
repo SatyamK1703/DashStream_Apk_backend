@@ -21,14 +21,14 @@ const protect = asyncHandler(async (req, res, next) => {
   // 2) Verify token
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  // 3) Check if user still exists
-  const currentUser = await User.findById(decoded.id);
+  // 3) Check if user still exists (ensure 'active' is selected despite select: false)
+  const currentUser = await User.findById(decoded.id).select('+active');
   if (!currentUser) {
     return next(new AppError('The user belonging to this token no longer exists.', 401));
   }
 
-  // 4) Check if user is active (for OTP-based auth, we don't check password changes)
-  if (!currentUser.active) {
+  // 4) Check if user is active
+  if (currentUser.active === false) {
     return next(new AppError('This user account has been deactivated.', 401));
   }
 
