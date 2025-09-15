@@ -1,13 +1,22 @@
-import User from '../models/userModel.js';
-import { asyncHandler } from '../middleware/errorMiddleware.js';
-import AppError from '../utils/appError.js';
-import { cloudinary, upload } from '../utils/cloudinary.js';
-import Address from '../models/addressModel.js';
+import User from "../models/userModel.js";
+import { asyncHandler } from "../middleware/errorMiddleware.js";
+import AppError from "../utils/appError.js";
+import { cloudinary, upload } from "../utils/cloudinary.js";
+import Address from "../models/addressModel.js";
+import {
+  QueryOptimizer,
+  PaginationHelper,
+  PROJECTIONS,
+} from "../utils/queryOptimizer.js";
+import { cache, CACHE_TTL, CACHE_KEYS } from "../config/cache.js";
 
+// Initialize query optimizer for User model
+const userOptimizer = new QueryOptimizer(User, "User");
+const userPaginator = new PaginationHelper(User, "User");
 
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
-  Object.keys(obj).forEach(el => {
+  Object.keys(obj).forEach((el) => {
     if (allowedFields.includes(el)) newObj[el] = obj[el];
   });
   return newObj;
@@ -18,10 +27,10 @@ export const createUser = asyncHandler(async (req, res, next) => {
   const newUser = await User.create(req.body);
 
   res.status(201).json({
-    status: 'success',
+    status: "success",
     data: {
-      user: newUser
-    }
+      user: newUser,
+    },
   });
 });
 
@@ -29,18 +38,18 @@ export const createUser = asyncHandler(async (req, res, next) => {
 export const updateUser = asyncHandler(async (req, res, next) => {
   const user = await User.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
-    runValidators: true
+    runValidators: true,
   });
 
   if (!user) {
-    return next(new AppError('No user found with that ID', 404));
+    return next(new AppError("No user found with that ID", 404));
   }
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     data: {
-      user
-    }
+      user,
+    },
   });
 });
 
@@ -48,54 +57,61 @@ export const updateUser = asyncHandler(async (req, res, next) => {
 export const updateProfile = asyncHandler(async (req, res, next) => {
   const filteredBody = filterObj(
     req.body,
-    'name',
-    'email',
-    'vehicle',
-    'profileImage'
+    "name",
+    "email",
+    "vehicle",
+    "profileImage"
   );
   const updatedUser = await User.findByIdAndUpdate(req.user.id, filteredBody, {
     new: true,
-    runValidators: true
+    runValidators: true,
   });
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     data: {
-      user: updatedUser
-    }
+      user: updatedUser,
+    },
   });
 });
 
 // Middleware for uploading profile image
-export const uploadProfileImage = upload.single('profileImage');
+export const uploadProfileImage = upload.single("profileImage");
 
 // Update user profile image
 export const updateProfileImage = asyncHandler(async (req, res, next) => {
   if (!req.file) {
-    return next(new AppError('Please upload an image', 400));
+    return next(new AppError("Please upload an image", 400));
   }
 
   try {
-    const user = await User.findById(req.user.id);
+    // Use optimized query with projection for profile image data only
+    const user = await userOptimizer.findByIdOptimized(req.user.id, {
+      projection: "profileImage",
+      cache: false, // Don't cache for delete operations
+    });
+
     if (user.profileImage && user.profileImage.public_id) {
       await deleteImage(user.profileImage.public_id);
     }
     user.profileImage = {
       public_id: req.file.filename,
-      url: req.file.path
+      url: req.file.path,
     };
 
     await user.save();
 
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
-        user
-      }
+        user,
+      },
     });
   } catch (error) {
-    console.error('Error updating profile image:', error);
-    return next(new AppError('Failed to update profile image. Please try again.', 500));
+    console.error("Error updating profile image:", error);
+    return next(
+      new AppError("Failed to update profile image. Please try again.", 500)
+    );
   }
 });
 
@@ -104,12 +120,12 @@ export const deleteUser = asyncHandler(async (req, res, next) => {
   const user = await User.findByIdAndDelete(req.params.id);
 
   if (!user) {
-    return next(new AppError('No user found with that ID', 404));
+    return next(new AppError("No user found with that ID", 404));
   }
 
   res.status(204).json({
-    status: 'success',
-    data: null
+    status: "success",
+    data: null,
   });
 });
 
@@ -122,7 +138,7 @@ export const createAddress = asyncHandler(async (req, res, next) => {
 
   // If new address is default, reset old defaults
   if (isDefault) {
-    user.addresses.forEach(addr => (addr.isDefault = false));
+    user.addresses.forEach((addr) => (addr.isDefault = false));
   }
 
   user.addresses.push({ name, address, city, pincode, isDefault });
@@ -158,7 +174,7 @@ export const updateAddress = asyncHandler(async (req, res, next) => {
   const { name, address: addrLine, city, pincode, isDefault } = req.body;
 
   if (isDefault) {
-    user.addresses.forEach(addr => (addr.isDefault = false));
+    user.addresses.forEach((addr) => (addr.isDefault = false));
   }
 
   address.name = name ?? address.name;
@@ -199,7 +215,7 @@ export const setDefaultAddress = asyncHandler(async (req, res, next) => {
 
   const address = user.addresses.id(req.params.addressId);
   if (!address) return next(new AppError("Address not found", 404));
-  user.addresses.forEach(addr => (addr.isDefault = false));
+  user.addresses.forEach((addr) => (addr.isDefault = false));
 
   address.isDefault = true;
 
@@ -214,31 +230,47 @@ export const setDefaultAddress = asyncHandler(async (req, res, next) => {
 
 //GET /api/users
 export const getAllUsers = asyncHandler(async (req, res, next) => {
-  const users = await User.find();
+  const { page = 1, limit = 10, role, status } = req.query;
+
+  // Build filter
+  const filter = {};
+  if (role) filter.role = role;
+  if (status) filter.status = status;
+
+  // Use paginated query with caching
+  const result = await userPaginator.paginate(filter, {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    projection: PROJECTIONS.USER.BASIC,
+    sort: { createdAt: -1 },
+    cache: true,
+    cacheTTL: CACHE_TTL.MEDIUM,
+  });
 
   res.status(200).json({
-    status: 'success',
-    results: users.length,
+    status: "success",
+    results: result.totalDocs,
+    page: result.page,
+    totalPages: result.totalPages,
     data: {
-      users
-    }
+      users: result.docs,
+    },
   });
 });
 
-
-  // User is authenticated - fetch and return user data
+// User is authenticated - fetch and return user data
 // GET /api/users/me - Get current user (guest-friendly)
 export const getCurrentUser = asyncHandler(async (req, res, next) => {
   // If no authenticated user (optionalAuth), return guest response
   if (!req.user) {
     return res.status(200).json({
-      status: 'success',
-      message: 'No user is currently logged in',
+      status: "success",
+      message: "No user is currently logged in",
       data: {
         user: null,
         isAuthenticated: false,
-        isGuest: true
-      }
+        isGuest: true,
+      },
     });
   }
 
@@ -248,41 +280,45 @@ export const getCurrentUser = asyncHandler(async (req, res, next) => {
   // Format user data for React Native app
   const userData = {
     id: user._id,
-    name: user.name || '',
-    email: user.email || '',
+    name: user.name || "",
+    email: user.email || "",
     phone: user.phone,
     role: user.role,
-    profileImage: user.profileImage?.url || '',
+    profileImage: user.profileImage?.url || "",
     profileComplete: user.profileComplete || false,
     isPhoneVerified: user.isPhoneVerified || false,
     active: user.active !== false,
-    lastActive: user.lastActive
+    lastActive: user.lastActive,
   };
 
   return res.status(200).json({
-    status: 'success',
-    message: 'Current user data retrieved successfully',
+    status: "success",
+    message: "Current user data retrieved successfully",
     data: {
       user: userData,
       isAuthenticated: true,
-      isGuest: false
-    }
+      isGuest: false,
+    },
   });
 });
 
 //GET /api/users/:id
 export const getUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.params.id);
+  const user = await userOptimizer.findByIdOptimized(req.params.id, {
+    projection: PROJECTIONS.USER.ADMIN, // Admin can see most fields except sensitive ones
+    cache: true,
+    cacheTTL: CACHE_TTL.MEDIUM,
+  });
 
   if (!user) {
-    return next(new AppError('No user found with that ID', 404));
+    return next(new AppError("No user found with that ID", 404));
   }
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     data: {
-      user
-    }
+      user,
+    },
   });
 });
 
@@ -291,70 +327,116 @@ export const deleteAccount = asyncHandler(async (req, res, next) => {
   await User.findByIdAndUpdate(req.user.id, { active: false });
 
   res.status(204).json({
-    status: 'success',
-    data: null
+    status: "success",
+    data: null,
   });
 });
 
 // GET /api/users/professionals
 export const getProfessionals = asyncHandler(async (req, res, next) => {
-  const { rating, availability } = req.query;
+  const { rating, availability, page = 1, limit = 10 } = req.query;
 
-  const query = { role: 'professional', profileComplete: true };
-  const professionals = await User.find(query)
+  // Build filter for professionals
+  const filter = {
+    role: "professional",
+    profileComplete: true,
+    active: true,
+  };
+
+  if (rating) {
+    filter.totalRatings = { $gte: parseFloat(rating) };
+  }
+
+  if (availability === "true") {
+    filter.isAvailable = true;
+    filter.status = "available";
+  }
+
+  // Use optimized paginated query with caching
+  const result = await userPaginator.paginate(filter, {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    projection: PROJECTIONS.USER.PROFESSIONAL,
+    sort: { totalRatings: -1, createdAt: -1 },
+    cache: true,
+    cacheTTL: CACHE_TTL.SHORT, // Short TTL for availability changes
+    cacheKey: `professionals:${JSON.stringify({ rating, availability })}`,
+  });
 
   res.status(200).json({
-    status: 'success',
-    results: professionals.length,
-    data: { professionals }
+    status: "success",
+    results: result.totalDocs,
+    page: result.page,
+    totalPages: result.totalPages,
+    data: {
+      professionals: result.docs,
+      pagination: {
+        hasNext: result.hasNextPage,
+        hasPrev: result.hasPrevPage,
+      },
+    },
   });
 });
 
 // GET /api/users/professionals/:id
 export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
-  const professional = await User.findOne({
-    _id: req.params.id,
-    role: 'professional'
-  });
+  const professional = await userOptimizer.findOneOptimized(
+    {
+      _id: req.params.id,
+      role: "professional",
+    },
+    {
+      projection: PROJECTIONS.USER.PROFESSIONAL,
+      cache: true,
+      cacheTTL: CACHE_TTL.MEDIUM,
+      cacheKey: `professional:${req.params.id}`,
+    }
+  );
 
   if (!professional) {
-    return next(new AppError('No professional found with that ID', 404));
+    return next(new AppError("No professional found with that ID", 404));
   }
 
   res.status(200).json({
-    status: 'success',
-    data: { professional }
+    status: "success",
+    data: { professional },
   });
 });
 
 // PATCH /api/users/professional-profile
-export const updateProfessionalProfile = asyncHandler(async (req, res, next) => {
-  if (req.user.role !== 'professional') {
-    return next(new AppError('Only professionals can update professional profiles', 403));
+export const updateProfessionalProfile = asyncHandler(
+  async (req, res, next) => {
+    if (req.user.role !== "professional") {
+      return next(
+        new AppError("Only professionals can update professional profiles", 403)
+      );
+    }
+
+    // Only allow safe fields for now
+    const allowedUpdates = ["isAvailable", "status", "profileImage", "phone"];
+    const updates = {};
+    for (let field of allowedUpdates) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: { user: updatedUser },
+    });
   }
-
-  // Only allow safe fields for now
-  const allowedUpdates = ['isAvailable', 'status', 'profileImage','phone'];
-  const updates = {};
-  for (let field of allowedUpdates) {
-    if (req.body[field] !== undefined) updates[field] = req.body[field];
-  }
-
-  const updatedUser = await User.findByIdAndUpdate(req.user.id, updates, {
-    new: true,
-    runValidators: true
-  });
-
-  res.status(200).json({
-    status: 'success',
-    data: { user: updatedUser }
-  });
-});
+);
 
 // PATCH /api/users/toggle-availability
 export const toggleAvailability = asyncHandler(async (req, res, next) => {
-  if (req.user.role !== 'professional' && req.user.role !== 'admin') {
-    return next(new AppError('Only professionals can update availability', 403));
+  if (req.user.role !== "professional" && req.user.role !== "admin") {
+    return next(
+      new AppError("Only professionals can update availability", 403)
+    );
   }
 
   const user = await User.findById(req.user.id);
@@ -362,8 +444,8 @@ export const toggleAvailability = asyncHandler(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   res.status(200).json({
-    status: 'success',
-    data: { isAvailable: user.isAvailable }
+    status: "success",
+    data: { isAvailable: user.isAvailable },
   });
 });
 
@@ -372,16 +454,15 @@ export const getUserStats = asyncHandler(async (req, res, next) => {
   const stats = await User.aggregate([
     {
       $group: {
-        _id: '$role',
+        _id: "$role",
         count: { $sum: 1 },
-        avgRating: { $avg: { $avg: '$reviews.rating' } } // average of embedded ratings
-      }
-    }
+        avgRating: { $avg: { $avg: "$reviews.rating" } }, // average of embedded ratings
+      },
+    },
   ]);
 
   res.status(200).json({
-    status: 'success',
-    data: { stats }
+    status: "success",
+    data: { stats },
   });
 });
-
