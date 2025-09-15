@@ -10,7 +10,8 @@ import {
   updateService,
   deleteService,
   getServiceStats,
-  getPopularServices
+  getPopularServices,
+  toggleServiceStatus
 } from '../controllers/serviceController.js';
 import { protect, restrictTo } from '../middleware/auth.js';
 import { cacheGet } from '../middleware/cache.js';
@@ -38,5 +39,8 @@ router.route('/:id')
 
 // Admin only routes
 router.get('/stats', restrictTo('admin'), getServiceStats);
+
+// Service toggle status endpoint for admin
+router.patch('/:id/toggle-status', restrictTo('admin'), toggleServiceStatus);
 
 export default router;

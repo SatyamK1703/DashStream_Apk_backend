@@ -123,9 +123,9 @@ export const getService = asyncHandler(async (req, res, next) => {
 
  //POST /api/services
 export const createService = asyncHandler(async (req, res, next) => {
-  // Add creator if not provided
-  if (!req.body.creator) {
-    req.body.creator = req.user.id;
+  // Add createdBy if not provided (model uses createdBy, not creator)
+  if (!req.body.createdBy) {
+    req.body.createdBy = req.user.id;
   }
   
   const newService = await Service.create(req.body);
@@ -152,7 +152,7 @@ export const updateService = asyncHandler(async (req, res, next) => {
   // Check if user is authorized to update this service
   if (
     req.user.role !== 'admin' &&
-    service.creator.toString() !== req.user.id
+    service.createdBy && service.createdBy.toString() !== req.user.id
   ) {
     return next(new AppError('You are not authorized to update this service', 403));
   }
@@ -188,7 +188,7 @@ export const deleteService = asyncHandler(async (req, res, next) => {
   // Check if user is authorized to delete this service
   if (
     req.user.role !== 'admin' &&
-    service.creator.toString() !== req.user.id
+    service.createdBy && service.createdBy.toString() !== req.user.id
   ) {
     return next(new AppError('You are not authorized to delete this service', 403));
   }
@@ -332,6 +332,37 @@ export const getPopularServices = asyncHandler(async (req, res, next) => {
     status: 'success',
     results: services.length,
     services
+  });
+});
+
+//PATCH /api/services/:id/toggle-status
+export const toggleServiceStatus = asyncHandler(async (req, res, next) => {
+  const service = await Service.findById(req.params.id);
+  
+  if (!service) {
+    return next(new AppError('No service found with that ID', 404));
+  }
+  
+  // Check if user is authorized to toggle this service
+  if (
+    req.user.role !== 'admin' &&
+    service.createdBy && service.createdBy.toString() !== req.user.id
+  ) {
+    return next(new AppError('You are not authorized to modify this service', 403));
+  }
+  
+  // Toggle the isActive status
+  service.isActive = req.body.isActive !== undefined ? req.body.isActive : !service.isActive;
+  await service.save();
+
+  // Invalidate caches related to services
+  cacheInvalidate('/api/services');
+  
+  res.status(200).json({
+    status: 'success',
+    data: {
+      service
+    }
   });
 });
 
