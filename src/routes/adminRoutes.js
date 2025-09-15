@@ -13,10 +13,7 @@ import {
   getAllProfessionals,
   getProfessionalDetails,
   updateProfessional,
-  updateProfessionalVerification,
-  getNotifications,
-  markNotificationRead,
-  markAllNotificationsRead
+  updateProfessionalVerification
 } from '../controllers/adminController.js';
 
 // Service management now handled via /api/services routes
