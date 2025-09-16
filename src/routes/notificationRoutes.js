@@ -9,6 +9,8 @@ import {
   createNotification,
   deleteExpiredNotifications,
   getMyNotifications,
+  getPreferences,
+  updatePreferences,
 } from "../controllers/notificationController.js";
 import {
   registerDeviceToken,
