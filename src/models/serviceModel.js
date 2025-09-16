@@ -40,10 +40,10 @@ const serviceSchema = new mongoose.Schema(
     },
     image: {
       type:String,
-      required:true
+      
     },
     banner:{type:String,
-    required:true
+    
     },
     vehicleType: {
       type: String,

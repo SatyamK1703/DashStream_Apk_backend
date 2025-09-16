@@ -9,7 +9,7 @@ import { formatSuccess, formatPaginated } from '../utils/responseFormatter.js';
  * for standardized API responses
  */
 export const responseEnhancer = (req, res, next) => {
-  // Add success response method
+  // Add success response method 
   res.sendSuccess = function(data, message, statusCode = 200) {
     return this.status(statusCode).json(formatSuccess(data, message, statusCode));
   };

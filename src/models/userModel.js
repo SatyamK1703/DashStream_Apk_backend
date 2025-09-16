@@ -62,7 +62,6 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['available', 'busy', 'offline'],
       default: 'available'
     },
     totalRatings: {
