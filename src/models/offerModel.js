@@ -10,42 +10,18 @@ const offerSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: [true, 'Offer must have a description'],
       trim: true,
       maxlength: [500, 'Offer description cannot exceed 500 characters']
     },
     discount: {
       type: Number,
-      required: [true, 'Offer must have a discount value'],
       min: [0, 'Discount cannot be negative'],
-      validate: {
-        validator: function(value) {
-          if (this.discountType === 'percentage') {
-            return value <= 100;
-          }
-          return value > 0; // For fixed discounts, just ensure it's positive
-        },
-        message: function(props) {
-          if (this.discountType === 'percentage') {
-            return 'Percentage discount cannot exceed 100%';
-          }
-          return 'Fixed discount must be positive';
-        }
-      }
+      max: [100, 'Discount cannot exceed 100%']
     },
     discountType: {
       type: String,
       enum: ['percentage', 'fixed'],
       default: 'percentage'
-    },
-    maxDiscountAmount: {
-      type: Number,
-      default: null // For percentage discounts, cap the maximum discount amount
-    },
-    minOrderAmount: {
-      type: Number,
-      default: 0,
-      min: [0, 'Minimum order amount cannot be negative']
     },
     validFrom: {
       type: Date,
@@ -66,26 +42,21 @@ const offerSchema = new mongoose.Schema(
       type: String,
       default: null
     },
-    bannerImage: {
-      type: String,
-      default: null
-    },
-    offerCode: {
-      type: String,
-      unique: true,
-      sparse: true, // Allows multiple null values
-      uppercase: true,
-      trim: true,
-      maxlength: [20, 'Offer code cannot exceed 20 characters']
-      // Remove index: true since we have schema.index() below
-    },
     isPromo:{
       type: Boolean,
       default: false
+   },
+    offerCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      uppercase: true,
+      trim: true,
+      maxlength: [20, 'Offer code cannot exceed 20 characters']
     },
     usageLimit: {
       type: Number,
-      default: null // null means unlimited usage
+      default: null 
     },
     usageCount: {
       type: Number,
@@ -94,7 +65,7 @@ const offerSchema = new mongoose.Schema(
     },
     userUsageLimit: {
       type: Number,
-      default: 1, // How many times a single user can use this offer
+      default: 1, 
       min: [1, 'User usage limit must be at least 1']
     },
     applicableServices: [{
@@ -152,13 +123,6 @@ const offerSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for better performance
-offerSchema.index({ validFrom: 1, validUntil: 1 });
-offerSchema.index({ isActive: 1 });
-offerSchema.index({ applicableCategories: 1 });
-offerSchema.index({ vehicleType: 1 });
-offerSchema.index({ title: 'text', description: 'text' });
-
 // Virtual to check if offer is currently valid
 offerSchema.virtual('isValid').get(function() {
   const now = new Date();
@@ -179,30 +143,10 @@ offerSchema.virtual('remainingUsage').get(function() {
   return Math.max(0, this.usageLimit - this.usageCount);
 });
 
-// Pre-save middleware to generate offer code if not provided
-offerSchema.pre('save', function(next) {
-  if (!this.offerCode && this.isNew) {
-    // Generate a random offer code
-    const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    this.offerCode = `OFFER${randomCode}`;
-  }
-  next();
-});
+
 
 // Static method to get active offers
-offerSchema.statics.getActiveOffers = function(filters = {}) {
-  const now = new Date();
-  return this.find({
-    isActive: true,
-    validFrom: { $lte: now },
-    validUntil: { $gte: now },
-    $or: [
-      { usageLimit: null },
-      { $expr: { $lt: ['$usageCount', '$usageLimit'] } }
-    ],
-    ...filters
-  }).sort({ priority: -1, isFeatured: -1, createdAt: -1 });
-};
+
 
 // Static method to check if user can use offer
 offerSchema.statics.canUserUseOffer = function(offerId, userId) {

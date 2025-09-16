@@ -25,7 +25,7 @@ const serviceSchema = new mongoose.Schema(
         'detailing',
         'maintenance',
         'customization',
-        'other'
+        'other',
       ],
       default: 'car wash'
     },
@@ -42,9 +42,7 @@ const serviceSchema = new mongoose.Schema(
       type:String,
       
     },
-    banner:{type:String,
-    
-    },
+    banner:{type:String},
     vehicleType: {
       type: String,
       enum: ['2 Wheeler', '4 Wheeler', 'Both'],
