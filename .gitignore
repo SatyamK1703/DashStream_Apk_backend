@@ -70,3 +70,7 @@ Thumbs.db
 *.pem
 *.key
 *.crt
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
