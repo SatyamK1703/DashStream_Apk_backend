@@ -1,6 +1,12 @@
 import Service from "../models/serviceModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
 import { cacheInvalidate } from "../middleware/cache.js";
+import { QueryOptimizer, PaginationHelper, PROJECTIONS } from "../utils/queryOptimizer.js";
+import { CACHE_TTL } from "../config/cache.js";
+
+// Create optimized query instances for Service model
+const serviceOptimizer = new QueryOptimizer(Service, 'Service');
+const servicePaginator = new PaginationHelper(Service, 'Service');
 
 //GET /api/services/categories/:category
 export const getServicesByCategory = asyncHandler(async (req, res, next) => {
