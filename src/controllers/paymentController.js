@@ -1,3 +1,6 @@
+/* eslint-env node */
+/* global console, process */
+import { Buffer } from "buffer";
 import razorpayInstance, {
   getRazorpayKeyId,
   getWebhookSecret,
@@ -6,6 +9,8 @@ import Payment from "../models/paymentModel.js";
 import Booking from "../models/bookingModel.js";
 import AppError from "../utils/appError.js";
 import crypto from "crypto";
+import { asyncHandler } from "../middleware/errorMiddleware.js";
+import * as paymentService from "../services/paymentService.js";
 
 // Timing-safe compare helper
 const safeCompare = (a = "", b = "") => {
@@ -226,3 +231,68 @@ export const processWebhookEvent = async (event) => {
     throw new AppError(error.message || "Failed to process webhook event", 500);
   }
 };
+
+// --- Express route handlers expected by routes/paymentRoutes.js ---
+
+export const handleWebhook = asyncHandler(async (req, res) => {
+  // Razorpay sends signature in 'x-razorpay-signature'
+  const signature =
+    req.headers["x-razorpay-signature"] ||
+    req.headers["x-razorpay-signature".toLowerCase()];
+  const rawBody = req.rawBody || (req.body ? JSON.stringify(req.body) : "");
+
+  const verified = verifyWebhookSignature(signature, rawBody);
+  if (!verified) {
+    return res
+      .status(400)
+      .json({ status: "error", message: "Invalid webhook signature" });
+  }
+
+  const event = req.body;
+  await processWebhookEvent(event);
+  return res.status(200).json({ status: "success" });
+});
+
+export const createPaymentOrder = asyncHandler(async (req, res) => {
+  const { bookingId, amount, notes } = req.body || {};
+  if (!bookingId || !amount) {
+    throw new AppError("Missing bookingId or amount", 400);
+  }
+
+  const result = await createOrder(bookingId, req.user.id, amount, notes);
+  res.status(201).json({ status: "success", data: result });
+});
+
+export const verifyPayment = asyncHandler(async (req, res) => {
+  const { orderId, paymentId, signature } = req.body || {};
+  if (!orderId || !paymentId || !signature) {
+    throw new AppError("Missing orderId, paymentId or signature", 400);
+  }
+
+  const valid = await verifyPaymentSignature(orderId, paymentId, signature);
+  if (!valid) throw new AppError("Invalid payment signature", 400);
+
+  res.status(200).json({ status: "success", message: "Payment verified" });
+});
+
+export const getUserPayments = asyncHandler(async (req, res) => {
+  const payments = await Payment.find({ userId: req.user.id }).sort(
+    "-createdAt"
+  );
+  res
+    .status(200)
+    .json({ status: "success", results: payments.length, payments });
+});
+
+export const getPayment = asyncHandler(async (req, res) => {
+  const payment = await Payment.findById(req.params.id);
+  if (!payment) throw new AppError("Payment not found", 404);
+  res.status(200).json({ status: "success", payment });
+});
+
+export const initiateRefund = asyncHandler(async (req, res) => {
+  const paymentId = req.params.id;
+  const { amount, notes } = req.body || {};
+  const refund = await paymentService.initiateRefund(paymentId, amount, notes);
+  res.status(200).json({ status: "success", refund });
+});
