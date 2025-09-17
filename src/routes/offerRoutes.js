@@ -11,10 +11,10 @@ import {
   deactivateOffer,
   useOffer,
   validateOfferCode,
-  getOfferStats
+  getOfferStats,
+  getOfferUsageDetails,
+  updateOfferLimits
 } from '../controllers/offerController.js';
-// Note: uploadImage was previously imported from '../utils/upload.js', but that file doesn't exist.
-// Using configured multer upload from cloudinary utils instead.
 import { upload as uploadImage } from '../utils/cloudinary.js';
 import { protect, restrictTo } from '../middleware/auth.js';
 
@@ -47,5 +47,7 @@ router.patch('/:id/deactivate', restrictTo( 'admin'), deactivateOffer);
 
 // Admin only routes
 router.get('/stats', restrictTo('admin'), getOfferStats);
+router.get('/:id/usage-details', restrictTo('admin'), getOfferUsageDetails);
+router.patch('/:id/limits', restrictTo('admin'), updateOfferLimits);
 
 export default router;

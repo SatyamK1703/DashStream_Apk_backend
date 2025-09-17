@@ -1,6 +1,7 @@
 import Offer from "../models/offerModel.js";
 import Service from "../models/serviceModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
+import mongoose from "mongoose";
 
 // GET /api/offers - Get all offers with filtering
 export const getAllOffers = asyncHandler(async (req, res, next) => {
@@ -458,4 +459,57 @@ export const getOfferStats = asyncHandler(async (req, res, next) => {
       byVehicleType: vehicleTypeStats
     }
   });
+});
+
+// GET /api/offers/:id/usage-details - Top users and usage details (Admin only)
+export const getOfferUsageDetails = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new AppError('Invalid offer id', 400));
+  }
+
+  const offer = await Offer.findById(id)
+    .populate('usedBy.user', 'name email phone');
+
+  if (!offer) return next(new AppError('No offer found with that ID', 404));
+
+  // Sort users by usageCount desc
+  const topUsers = [...offer.usedBy]
+    .sort((a, b) => b.usageCount - a.usageCount)
+    .slice(0, 20); // limit for UI
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      offerId: offer._id,
+      title: offer.title,
+      usageCount: offer.usageCount,
+      usageLimit: offer.usageLimit,
+      userUsageLimit: offer.userUsageLimit,
+      topUsers
+    }
+  });
+});
+
+// PATCH /api/offers/:id/limits - Update usage limits (Admin only)
+export const updateOfferLimits = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { usageLimit, userUsageLimit } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new AppError('Invalid offer id', 400));
+  }
+
+  const updates = {};
+  if (usageLimit !== undefined) updates.usageLimit = usageLimit; // allow null for unlimited
+  if (userUsageLimit !== undefined) updates.userUsageLimit = userUsageLimit;
+
+  const updated = await Offer.findByIdAndUpdate(id, updates, {
+    new: true,
+    runValidators: true
+  });
+
+  if (!updated) return next(new AppError('No offer found with that ID', 404));
+
+  res.status(200).json({ status: 'success', data: updated });
 });
