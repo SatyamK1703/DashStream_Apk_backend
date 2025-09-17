@@ -259,7 +259,6 @@ export const getAllUsers = async (req, res, next) => {
     
     // Execute query with pagination
     const users = await User.find(query)
-      .select('name email phone role profileImage createdAt isPhoneVerified status')
       .sort('-createdAt')
       .skip(skip)
       .limit(parseInt(limit));
@@ -674,7 +673,7 @@ export const getAllProfessionals = async (req, res, next) => {
     
     // Execute query with pagination
     const professionals = await User.find(query)
-      .select('name email phone profileImage createdAt isPhoneVerified status professionalInfo')
+      
       .sort('-createdAt')
       .skip(skip)
       .limit(parseInt(limit));
@@ -756,7 +755,6 @@ export const getProfessionalDetails = async (req, res, next) => {
       rating: { $exists: true }
     })
       .populate('customer', 'name')
-      .select('rating review customer createdAt')
       .sort('-createdAt')
       .limit(5);
     

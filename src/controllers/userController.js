@@ -3,16 +3,7 @@ import { asyncHandler } from "../middleware/errorMiddleware.js";
 import AppError from "../utils/appError.js";
 import { cloudinary, upload } from "../utils/cloudinary.js";
 import Address from "../models/addressModel.js";
-import {
-  QueryOptimizer,
-  PaginationHelper,
-  PROJECTIONS,
-} from "../utils/queryOptimizer.js";
 import { cache, CACHE_TTL, CACHE_KEYS } from "../config/cache.js";
-
-// Initialize query optimizer for User model
-const userOptimizer = new QueryOptimizer(User, "User");
-const userPaginator = new PaginationHelper(User, "User");
 
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
@@ -85,14 +76,11 @@ export const updateProfileImage = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    // Use optimized query with projection for profile image data only
-    const user = await userOptimizer.findByIdOptimized(req.user.id, {
-      projection: "profileImage",
-      cache: false, // Don't cache for delete operations
-    });
+    // Get user with only profileImage field selected
+    const user = await User.findById(req.user.id).select('profileImage');
 
     if (user.profileImage && user.profileImage.public_id) {
-      await deleteImage(user.profileImage.public_id);
+      await cloudinary.uploader.destroy(user.profileImage.public_id);
     }
     user.profileImage = {
       public_id: req.file.filename,
@@ -237,23 +225,28 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
   if (role) filter.role = role;
   if (status) filter.status = status;
 
-  // Use paginated query with caching
-  const result = await userPaginator.paginate(filter, {
-    page: parseInt(page),
-    limit: parseInt(limit),
-    projection: PROJECTIONS.USER.BASIC,
-    sort: { createdAt: -1 },
-    cache: true,
-    cacheTTL: CACHE_TTL.MEDIUM,
-  });
+  // Calculate pagination
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  // Get users with pagination
+  const users = await User.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limitNum);
+
+  // Get total count for pagination info
+  const totalUsers = await User.countDocuments(filter);
+  const totalPages = Math.ceil(totalUsers / limitNum);
 
   res.status(200).json({
     status: "success",
-    results: result.totalDocs,
-    page: result.page,
-    totalPages: result.totalPages,
+    results: totalUsers,
+    page: pageNum,
+    totalPages: totalPages,
     data: {
-      users: result.docs,
+      users: users,
     },
   });
 });
@@ -304,11 +297,7 @@ export const getCurrentUser = asyncHandler(async (req, res, next) => {
 
 //GET /api/users/:id
 export const getUser = asyncHandler(async (req, res, next) => {
-  const user = await userOptimizer.findByIdOptimized(req.params.id, {
-    projection: PROJECTIONS.USER.ADMIN, // Admin can see most fields except sensitive ones
-    cache: true,
-    cacheTTL: CACHE_TTL.MEDIUM,
-  });
+  const user = await User.findById(req.params.id)
 
   if (!user) {
     return next(new AppError("No user found with that ID", 404));
@@ -352,27 +341,33 @@ export const getProfessionals = asyncHandler(async (req, res, next) => {
     filter.status = "available";
   }
 
-  // Use optimized paginated query with caching
-  const result = await userPaginator.paginate(filter, {
-    page: parseInt(page),
-    limit: parseInt(limit),
-    projection: PROJECTIONS.USER.PROFESSIONAL,
-    sort: { totalRatings: -1, createdAt: -1 },
-    cache: true,
-    cacheTTL: CACHE_TTL.SHORT, // Short TTL for availability changes
-    cacheKey: `professionals:${JSON.stringify({ rating, availability })}`,
-  });
+  // Calculate pagination
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  // Get professionals with pagination
+  const professionals = await User.find(filter)
+    .sort({ totalRatings: -1, createdAt: -1 })
+    .skip(skip)
+    .limit(limitNum);
+
+  // Get total count for pagination info
+  const totalProfessionals = await User.countDocuments(filter);
+  const totalPages = Math.ceil(totalProfessionals / limitNum);
+  const hasNext = pageNum < totalPages;
+  const hasPrev = pageNum > 1;
 
   res.status(200).json({
     status: "success",
-    results: result.totalDocs,
-    page: result.page,
-    totalPages: result.totalPages,
+    results: totalProfessionals,
+    page: pageNum,
+    totalPages: totalPages,
     data: {
-      professionals: result.docs,
+      professionals: professionals,
       pagination: {
-        hasNext: result.hasNextPage,
-        hasPrev: result.hasPrevPage,
+        hasNext: hasNext,
+        hasPrev: hasPrev,
       },
     },
   });
@@ -380,18 +375,10 @@ export const getProfessionals = asyncHandler(async (req, res, next) => {
 
 // GET /api/users/professionals/:id
 export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
-  const professional = await userOptimizer.findOneOptimized(
-    {
-      _id: req.params.id,
-      role: "professional",
-    },
-    {
-      projection: PROJECTIONS.USER.PROFESSIONAL,
-      cache: true,
-      cacheTTL: CACHE_TTL.MEDIUM,
-      cacheKey: `professional:${req.params.id}`,
-    }
-  );
+  const professional = await User.findOne({
+    _id: req.params.id,
+    role: "professional",
+  })
 
   if (!professional) {
     return next(new AppError("No professional found with that ID", 404));

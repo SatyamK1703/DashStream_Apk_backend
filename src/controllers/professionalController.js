@@ -131,9 +131,7 @@ export const getProfessionalProfile = async (req, res, next) => {
       return res.sendError('Unauthorized. Only professionals can access their profile.', 403);
     }
 
-    const professional = await User.findById(professionalId).select(
-      'name email phone profileImage  rating totalRatings isAvailable status'
-    );
+    const professional = await User.findById(professionalId);
 
     if (!professional) return res.sendError('Professional not found', 404);
 

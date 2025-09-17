@@ -1,12 +1,7 @@
 import Service from "../models/serviceModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
 import { cacheInvalidate } from "../middleware/cache.js";
-import { QueryOptimizer, PaginationHelper, PROJECTIONS } from "../utils/queryOptimizer.js";
 import { CACHE_TTL } from "../config/cache.js";
-
-// Create optimized query instances for Service model
-const serviceOptimizer = new QueryOptimizer(Service, 'Service');
-const servicePaginator = new PaginationHelper(Service, 'Service');
 
 //GET /api/services/categories/:category
 export const getServicesByCategory = asyncHandler(async (req, res, next) => {
@@ -25,18 +20,11 @@ export const getServicesByCategory = asyncHandler(async (req, res, next) => {
     return next(new AppError("Invalid category", 400));
   }
 
-  const services = await serviceOptimizer.findOptimized(
-    {
-      category,
-      isActive: true,
-    },
-    {
-      projection: PROJECTIONS.SERVICE.LIST,
-      sort: { rating: -1, popularity: -1 },
-      cacheKey: `category_${category}`,
-      cacheTTL: CACHE_TTL.LONG,
-    }
-  );
+  const services = await Service.find({
+    category,
+    isActive: true,
+  })
+  .sort({ rating: -1, popularity: -1 });
 
   res.status(200).json({
     status: "success",
@@ -110,58 +98,51 @@ export const getAllServices = asyncHandler(async (req, res, next) => {
     limit,
   })}`;
 
-  // Use optimized pagination with caching
-  const result = await servicePaginator.paginate(filter, {
-    page,
-    limit,
-    sort,
-    projection: PROJECTIONS.SERVICE.LIST,
-    cacheTTL: CACHE_TTL.MEDIUM,
-    cacheKey,
-  });
+  // Get services with pagination
+  const services = await Service.find(filter)
+    .sort(sort)
+    .skip(skip)
+    .limit(limit);
+
+  // Get total count for pagination info  
+  const totalServices = await Service.countDocuments(filter);
+  const totalPages = Math.ceil(totalServices / limit);
+  const hasNextPage = page < totalPages;
+  const hasPrevPage = page > 1;
+  const nextPage = hasNextPage ? page + 1 : null;
+  const prevPage = hasPrevPage ? page - 1 : null;
 
   res.status(200).json({
     status: "success",
-    results: result.docs.length,
-    totalCount: result.totalDocs,
-    currentPage: result.page,
-    totalPages: result.totalPages,
-    hasNextPage: result.hasNextPage,
-    hasPrevPage: result.hasPrevPage,
-    nextPage: result.nextPage,
-    prevPage: result.prevPage,
-    services: result.docs,
+    results: services.length,
+    totalCount: totalServices,
+    currentPage: page,
+    totalPages: totalPages,
+    hasNextPage: hasNextPage,
+    hasPrevPage: hasPrevPage,
+    nextPage: nextPage,
+    prevPage: prevPage,
+    services: services,
   });
 });
 
 //GET /api/services/:id
 export const getService = asyncHandler(async (req, res, next) => {
-  // Get service with optimized query and caching
-  const service = await serviceOptimizer.findByIdOptimized(req.params.id, {
-    projection: PROJECTIONS.SERVICE.DETAIL,
-    cacheKey: `service_${req.params.id}`,
-    cacheTTL: CACHE_TTL.LONG,
-  });
+  // Get service by ID
+  const service = await Service.findById(req.params.id);
 
   if (!service) {
     return next(new AppError("No service found with that ID", 404));
   }
 
-  // Get related services with optimized query and caching
-  const relatedServices = await serviceOptimizer.findOptimized(
-    {
-      category: service.category,
-      _id: { $ne: service._id },
-      isActive: true,
-    },
-    {
-      projection: PROJECTIONS.SERVICE.LIST,
-      limit: 4,
-      sort: { rating: -1 },
-      cacheKey: `related_services_${service.category}`,
-      cacheTTL: CACHE_TTL.MEDIUM,
-    }
-  );
+  // Get related services  
+  const relatedServices = await Service.find({
+    category: service.category,
+    _id: { $ne: service._id },
+    isActive: true,
+  })
+  .limit(4)
+  .sort({ rating: -1 });
 
   res.status(200).json({
     status: "success",
@@ -254,7 +235,6 @@ export const deleteService = asyncHandler(async (req, res, next) => {
 //GET /api/services/top-services
 export const getTopServices = asyncHandler(async (req, res, next) => {
   const services = await Service.find({ isActive: true })
-    .select("title price rating image")
     .sort("-popularity -rating")
     .limit(5)
     .lean();
@@ -330,7 +310,6 @@ export const searchServices = asyncHandler(async (req, res, next) => {
     ],
     isActive: true,
   })
-    .select("title price rating image category")
     .limit(Math.min(20, parseInt(req.query.limit) || 10))
     .lean();
 
