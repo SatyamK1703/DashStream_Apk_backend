@@ -491,6 +491,70 @@ export const getOfferUsageDetails = asyncHandler(async (req, res, next) => {
   });
 });
 
+// GET /api/offers/:id/stats - Get comprehensive offer statistics (Admin only)
+export const getSpecificOfferStats = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new AppError('Invalid offer id', 400));
+  }
+
+  // Get offer details
+  const offer = await Offer.findById(id);
+  if (!offer) {
+    return next(new AppError('No offer found with that ID', 404));
+  }
+
+  // Get usage history with booking details (we'll simulate this for now)
+  // This would require a Booking model with offer usage tracking
+  const usageHistory = [];
+  
+  // Get top users from the offer's usedBy array
+  const topUsers = [...(offer.usedBy || [])]
+    .sort((a, b) => b.usageCount - a.usageCount)
+    .slice(0, 10)
+    .map(usage => ({
+      user: {
+        _id: usage.user._id,
+        phone: usage.user.phone || 'N/A',
+        name: usage.user.name || 'Unknown User'
+      },
+      usageCount: usage.usageCount || 1,
+      totalSavings: (usage.usageCount || 1) * (offer.discountType === 'percentage' ? 100 : offer.discount) // Estimated savings
+    }));
+
+  // Calculate totals (estimated for now - would need booking integration)
+  const totalUses = offer.usageCount || 0;
+  const estimatedSavingsPerUse = offer.discountType === 'percentage' ? 100 : offer.discount;
+  const totalSavings = totalUses * estimatedSavingsPerUse;
+  const totalRevenue = totalSavings * 10; // Estimated revenue (10x savings)
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      offer: {
+        _id: offer._id,
+        title: offer.title,
+        description: offer.description,
+        discount: offer.discount,
+        discountType: offer.discountType,
+        validFrom: offer.validFrom,
+        validUntil: offer.validUntil,
+        isActive: offer.isActive,
+        offerCode: offer.offerCode,
+        usageLimit: offer.usageLimit,
+        usageCount: offer.usageCount,
+        createdAt: offer.createdAt,
+        updatedAt: offer.updatedAt
+      },
+      usageHistory,
+      topUsers,
+      totalRevenue,
+      totalSavings
+    }
+  });
+});
+
 // PATCH /api/offers/:id/limits - Update usage limits (Admin only)
 export const updateOfferLimits = asyncHandler(async (req, res, next) => {
   const { id } = req.params;

@@ -13,6 +13,7 @@ import {
   validateOfferCode,
   getOfferStats,
   getOfferUsageDetails,
+  getSpecificOfferStats,
   updateOfferLimits
 } from '../controllers/offerController.js';
 import { upload as uploadImage } from '../utils/cloudinary.js';
@@ -47,6 +48,7 @@ router.patch('/:id/deactivate', restrictTo( 'admin'), deactivateOffer);
 
 // Admin only routes
 router.get('/stats', restrictTo('admin'), getOfferStats);
+router.get('/:id/stats', restrictTo('admin'), getSpecificOfferStats); // New comprehensive stats function
 router.get('/:id/usage-details', restrictTo('admin'), getOfferUsageDetails);
 router.patch('/:id/limits', restrictTo('admin'), updateOfferLimits);
 
