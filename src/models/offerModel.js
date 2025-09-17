@@ -143,10 +143,25 @@ offerSchema.virtual('remainingUsage').get(function() {
   return Math.max(0, this.usageLimit - this.usageCount);
 });
 
-
+// Pre-save middleware to handle empty offerCode
+offerSchema.pre('save', function(next) {
+  // Convert empty string offerCode to null to work with sparse unique index
+  if (this.offerCode === '') {
+    this.offerCode = undefined;
+  }
+  next();
+});
 
 // Static method to get active offers
-
+offerSchema.statics.getActiveOffers = function(additionalFilters = {}) {
+  const now = new Date();
+  return this.find({
+    isActive: true,
+    validFrom: { $lte: now },
+    validUntil: { $gte: now },
+    ...additionalFilters
+  });
+};
 
 // Static method to check if user can use offer
 offerSchema.statics.canUserUseOffer = function(offerId, userId) {
@@ -155,19 +170,25 @@ offerSchema.statics.canUserUseOffer = function(offerId, userId) {
     isActive: true,
     validFrom: { $lte: new Date() },
     validUntil: { $gte: new Date() },
-    $or: [
-      { usageLimit: null },
-      { $expr: { $lt: ['$usageCount', '$usageLimit'] } }
-    ],
-    $or: [
-      { 'usedBy.user': { $ne: userId } },
-      { 
-        'usedBy': {
-          $elemMatch: {
-            user: userId,
-            $expr: { $lt: ['$usageCount', '$userUsageLimit'] }
+    $and: [
+      {
+        $or: [
+          { usageLimit: null },
+          { $expr: { $lt: ['$usageCount', '$usageLimit'] } }
+        ]
+      },
+      {
+        $or: [
+          { 'usedBy.user': { $ne: userId } },
+          { 
+            'usedBy': {
+              $elemMatch: {
+                user: userId,
+                $expr: { $lt: ['$usageCount', '$userUsageLimit'] }
+              }
+            }
           }
-        }
+        ]
       }
     ]
   });
