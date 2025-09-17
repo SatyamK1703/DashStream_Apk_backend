@@ -1,140 +1,228 @@
-import * as paymentService from '../services/paymentService.js';
-import AppError from '../utils/appError.js';
-import { asyncHandler } from '../middleware/errorMiddleware.js';
+import razorpayInstance, {
+  getRazorpayKeyId,
+  getWebhookSecret,
+} from "../config/razorpay.js";
+import Payment from "../models/paymentModel.js";
+import Booking from "../models/bookingModel.js";
+import AppError from "../utils/appError.js";
+import crypto from "crypto";
 
-//POST /api/payments/create-order
-
-export const createPaymentOrder = asyncHandler(async (req, res) => {
-  const { bookingId, amount, notes } = req.body;
-  
-  if (!bookingId || !amount) {
-    throw new AppError('Booking ID and amount are required', 400);
+// Timing-safe compare helper
+const safeCompare = (a = "", b = "") => {
+  try {
+    const bufA = Buffer.from(String(a));
+    const bufB = Buffer.from(String(b));
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+  } catch (err) {
+    return false;
   }
-  
-  const userId = req.user._id;
-  const orderData = await paymentService.createOrder(bookingId, userId, amount, notes);
-  
-  res.status(200).json({
-    status: 'success',
-    data: orderData
-  });
-});
+};
 
-//POST /api/payments/verify
+// Create a new Razorpay order
+export const createOrder = async (bookingId, userId, amount, notes = {}) => {
+  try {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new AppError("Booking not found", 404);
 
-export const verifyPayment = asyncHandler(async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-  
-  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-    throw new AppError('Payment verification failed: Missing required parameters', 400);
+    const receiptId = `receipt_${Date.now()}`;
+    const paise = Math.round(Number(amount) * 100);
+    if (!Number.isFinite(paise) || paise <= 0)
+      throw new AppError("Invalid amount", 400);
+
+    const orderOptions = {
+      amount: paise,
+      currency: "INR",
+      receipt: receiptId,
+      notes: {
+        bookingId: bookingId.toString(),
+        userId: userId.toString(),
+        ...notes,
+      },
+    };
+
+    const razorpayOrder = await razorpayInstance.orders.create(orderOptions);
+
+    const payment = await Payment.create({
+      bookingId,
+      userId,
+      amount,
+      currency: "INR",
+      razorpayOrderId: razorpayOrder.id,
+      status: "created",
+      receiptId,
+      notes,
+    });
+
+    return {
+      paymentId: payment._id,
+      order: razorpayOrder,
+      key: getRazorpayKeyId(),
+    };
+  } catch (error) {
+    console.error("Error creating Razorpay order:", error);
+    throw new AppError(error.message || "Failed to create payment order", 500);
   }
-  
-  const isValid = await paymentService.verifyPaymentSignature(
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature
-  );
-  
-  if (!isValid) {
-    throw new AppError('Payment verification failed: Invalid signature', 400);
-  }
-  
-  const payment = await paymentService.getPaymentByOrderId(razorpay_order_id);
-  
-  res.status(200).json({
-    status: 'success',
-    message: 'Payment verified successfully',
-    data: {
-      payment
+};
+
+// Verify payment signature (timing-safe)
+export const verifyPaymentSignature = async (orderId, paymentId, signature) => {
+  try {
+    const payment = await Payment.findOne({ razorpayOrderId: orderId });
+    if (!payment) throw new AppError("Payment record not found", 404);
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) throw new AppError("Razorpay secret not configured", 500);
+
+    const generatedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(`${orderId}|${paymentId}`)
+      .digest("hex");
+
+    const isValid = safeCompare(generatedSignature, signature);
+
+    if (isValid) {
+      payment.razorpayPaymentId = paymentId;
+      payment.razorpaySignature = signature;
+      payment.status = "captured";
+      payment.capturedAt = new Date();
+      await payment.save();
+
+      await Booking.findByIdAndUpdate(payment.bookingId, {
+        paymentStatus: "paid",
+        paymentId: payment._id,
+      });
     }
-  });
-});
 
-//POST /api/payments/webhook
+    return isValid;
+  } catch (error) {
+    console.error("Error verifying payment signature:", error);
+    throw new AppError(error.message || "Failed to verify payment", 500);
+  }
+};
 
-export const handleWebhook = asyncHandler(async (req, res) => {
-  const signature = req.headers['x-razorpay-signature'];
-  
-  if (!signature) {
-    throw new AppError('Webhook verification failed: Missing signature', 400);
-  }
-  
-  // Get raw body from request
-  const rawBody = req.rawBody;
-  
-  // Verify webhook signature
-  const isValid = paymentService.verifyWebhookSignature(signature, rawBody);
-  
-  if (!isValid) {
-    throw new AppError('Webhook verification failed: Invalid signature', 400);
-  }
-  
-  // Process webhook event
-  const event = req.body;
-  await paymentService.processWebhookEvent(event);
-  
-  // Always respond with 200 to Razorpay webhooks
-  res.status(200).json({
-    status: 'success',
-    message: 'Webhook processed successfully'
-  });
-});
-
-//GET /api/payments/:id
- 
-export const getPayment = asyncHandler(async (req, res) => {
-  const paymentId = req.params.id;
-  const payment = await paymentService.getPaymentDetails(paymentId);
-  
-  // Check if user has permission to view this payment
-  if (req.user.role !== 'admin' && payment.userId.toString() !== req.user._id.toString()) {
-    throw new AppError('You do not have permission to view this payment', 403);
-  }
-  
-  res.status(200).json({
-    status: 'success',
-    data: {
-      payment
+// Verify webhook signature (timing-safe)
+export const verifyWebhookSignature = (signature, body) => {
+  try {
+    const webhookSecret = getWebhookSecret();
+    if (!webhookSecret) {
+      console.error("Webhook secret not configured");
+      return false;
     }
-  });
-});
 
-//GET /api/payments/user
- 
-export const getUserPayments = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  
-  const payments = await Payment.find({ userId })
-    .sort({ createdAt: -1 })
-    .populate('bookingId', 'serviceDate status');
-  
-  res.status(200).json({
-    status: 'success',
-    results: payments.length,
-    data: {
-      payments
-    }
-  });
-});
+    const generatedSignature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(body)
+      .digest("hex");
 
-//POST /api/payments/:id/refund
-
-export const initiateRefund = asyncHandler(async (req, res) => {
-  const paymentId = req.params.id;
-  const { amount, notes } = req.body;
-  
-  // Only admins can initiate refunds
-  if (req.user.role !== 'admin') {
-    throw new AppError('You do not have permission to initiate refunds', 403);
+    return safeCompare(generatedSignature, signature);
+  } catch (error) {
+    console.error("Error verifying webhook signature:", error);
+    return false;
   }
-  
-  const refund = await paymentService.initiateRefund(paymentId, amount, notes);
-  
-  res.status(200).json({
-    status: 'success',
-    message: 'Refund initiated successfully',
-    data: {
-      refund
+};
+
+// Process webhook event with idempotency
+export const processWebhookEvent = async (event) => {
+  try {
+    // Basic payload normalization
+    const eventId = event?.id;
+    const eventType = event?.event;
+    const payload = event?.payload ?? {};
+
+    if (!eventId || !eventType) {
+      throw new Error("Invalid webhook event");
     }
-  });
-});
+
+    // Try to find order/payment id from payload
+    const orderEntity = payload.order?.entity;
+    const paymentEntity = payload.payment?.entity;
+    const orderId =
+      orderEntity?.id || paymentEntity?.order_id || paymentEntity?.id;
+
+    if (!orderId) {
+      // For some events, order id may be in different places
+      // Attempt to find by searching for any razorpay order id inside payload
+      const maybeOrderId = JSON.stringify(payload).match(/order_[a-zA-Z0-9]+/);
+      if (maybeOrderId) event.orderId = maybeOrderId[0];
+    }
+
+    // Find the payment record by razorpayOrderId OR by razorpayPaymentId
+    let paymentRecord = null;
+    if (orderId)
+      paymentRecord = await Payment.findOne({ razorpayOrderId: orderId });
+    if (!paymentRecord && paymentEntity?.id)
+      paymentRecord = await Payment.findOne({
+        razorpayPaymentId: paymentEntity.id,
+      });
+
+    if (!paymentRecord) {
+      // If no record, log and return gracefully; webhook may arrive before DB record is created
+      console.warn(
+        `Payment record not found for order: ${orderId}. Webhook ${eventId} will be skipped.`
+      );
+      return null;
+    }
+
+    // Idempotency: skip if we've already processed this event id
+    const alreadyProcessed = (paymentRecord.webhookEvents || []).some(
+      (e) => e.eventId === eventId
+    );
+    if (alreadyProcessed) return paymentRecord;
+
+    // Update payment status based on event type
+    switch (eventType) {
+      case "payment.authorized":
+        paymentRecord.status = "authorized";
+        paymentRecord.paymentMethod = paymentEntity?.method;
+        paymentRecord.paymentDetails = paymentEntity;
+        break;
+      case "payment.captured":
+        paymentRecord.status = "captured";
+        paymentRecord.razorpayPaymentId =
+          paymentEntity?.id || paymentRecord.razorpayPaymentId;
+        paymentRecord.capturedAt = new Date();
+        await Booking.findByIdAndUpdate(paymentRecord.bookingId, {
+          paymentStatus: "paid",
+          paymentId: paymentRecord._id,
+        });
+        break;
+      case "payment.failed":
+        paymentRecord.status = "failed";
+        paymentRecord.errorCode = paymentEntity?.error_code;
+        paymentRecord.errorDescription = paymentEntity?.error_description;
+        break;
+      case "refund.created":
+        paymentRecord.refundId = payload.refund?.entity?.id;
+        paymentRecord.refundAmount =
+          (payload.refund?.entity?.amount ?? 0) / 100;
+        paymentRecord.refundStatus = "pending";
+        break;
+      case "refund.processed":
+        paymentRecord.refundStatus = "processed";
+        paymentRecord.status = "refunded";
+        break;
+      case "refund.failed":
+        paymentRecord.refundStatus = "failed";
+        break;
+      default:
+        // Keep record of unknown events for audit
+        break;
+    }
+
+    // Append webhook event with idempotent metadata
+    paymentRecord.webhookEvents = paymentRecord.webhookEvents || [];
+    paymentRecord.webhookEvents.push({
+      eventId,
+      eventType,
+      timestamp: new Date(),
+      payload: event,
+    });
+
+    await paymentRecord.save();
+    return paymentRecord;
+  } catch (error) {
+    console.error("Error processing webhook event:", error);
+    throw new AppError(error.message || "Failed to process webhook event", 500);
+  }
+};
