@@ -21,6 +21,16 @@ const locationSchema = new Schema(
   { _id: false }
 );
 
+const trackingUpdateSchema = new Schema(
+  {
+    status: { type: String },
+    message: { type: String, required: true },
+    updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    timestamp: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const bookingSchema = new Schema(
   {
     customer: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -36,7 +46,7 @@ const bookingSchema = new Schema(
     scheduledTime: { type: String },
     location: { type: locationSchema },
     status: { type: String, default: "pending" },
-    trackingUpdates: { type: [String], default: [] },
+    trackingUpdates: { type: [trackingUpdateSchema], default: [] },
     price: { type: Number, default: 0 },
     paymentStatus: { type: String, default: "unpaid" },
     paymentMethod: { type: String },
@@ -54,9 +64,16 @@ bookingSchema.virtual("duration").get(function () {
 
 bookingSchema.pre("save", function (next) {
   if (!this.trackingUpdates) this.trackingUpdates = [];
-  this.trackingUpdates.push(
-    `status:${this.status} at ${new Date().toISOString()}`
-  );
+
+  // Only add automatic tracking update if this is a status change (not initial creation)
+  if (this.isModified("status") && !this.isNew) {
+    this.trackingUpdates.push({
+      status: this.status,
+      message: `Status updated to ${this.status}`,
+      timestamp: new Date(),
+    });
+  }
+
   next();
 });
 
