@@ -13,6 +13,9 @@ import {
   validateOfferCode,
   getOfferStats
 } from '../controllers/offerController.js';
+// Note: uploadImage was previously imported from '../utils/upload.js', but that file doesn't exist.
+// Using configured multer upload from cloudinary utils instead.
+import { upload as uploadImage } from '../utils/cloudinary.js';
 import { protect, restrictTo } from '../middleware/auth.js';
 
 const router = express.Router();

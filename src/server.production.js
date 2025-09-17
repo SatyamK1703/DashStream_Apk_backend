@@ -38,6 +38,7 @@ import membershipRoutes from "./routes/membershipRoutes.js";
 import professionalRoutes from "./routes/professionalRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorMiddleware.js";
@@ -196,6 +197,7 @@ app.use("/api/membership", membershipRoutes);
 app.use("/api/professional", professionalRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
