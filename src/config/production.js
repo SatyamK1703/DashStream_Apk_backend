@@ -25,7 +25,8 @@ export const validateProductionEnv = () => {
     'CLOUDINARY_API_SECRET',
     'FIREBASE_CONFIG',
     'RAZORPAY_KEY_ID',
-    'RAZORPAY_KEY_SECRET'
+    'RAZORPAY_KEY_SECRET',
+    'GOOGLE_MAPS_API_KEY'
   ];
 
   const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);

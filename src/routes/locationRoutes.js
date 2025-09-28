@@ -14,9 +14,11 @@ import {
   subscribeToLocationUpdates,
   unsubscribeFromLocationUpdates
 } from '../services/locationService.js';
-import * as firebaseController from '../controllers/firebaseController.js';
+import { reverseGeocode } from '../controllers/locationController.js';
 
 const router = express.Router();
+
+router.get('/reverse-geocode', authenticate, reverseGeocode);
 
 //POST /api/location/update
 

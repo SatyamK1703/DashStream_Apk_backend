@@ -327,6 +327,28 @@ const _unsubscribeFromLocationUpdates = async (userId, professionalId) => {
 export const unsubscribeFromLocationUpdates = withErrorHandling(_unsubscribeFromLocationUpdates, 'unsubscribeFromLocationUpdates');
 
 
+
+import { Client } from '@googlemaps/google-maps-services-js';
+
+const _getReverseGeocode = async (latitude, longitude) => {
+  const client = new Client({});
+  const response = await client.reverseGeocode({
+    params: {
+      latlng: { latitude, longitude },
+      key: process.env.GOOGLE_MAPS_API_KEY,
+    },
+  });
+
+  if (response.data.results.length > 0) {
+    return response.data.results[0].formatted_address;
+  } else {
+    throw new AppError('No address found for the given coordinates', 404);
+  }
+};
+
+export const getReverseGeocode = withErrorHandling(_getReverseGeocode, 'getReverseGeocode');
+
+
 const _notifyLocationSubscribers = async (professionalId, locationData) => {
   // Validate professional exists
   const professional = await User.findById(professionalId);
