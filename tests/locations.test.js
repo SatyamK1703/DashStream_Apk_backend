@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../src/server.js";
+import app from "../src/app.js";
 import Location from "../src/models/locationModel.js";
 import {
   createTestUser,

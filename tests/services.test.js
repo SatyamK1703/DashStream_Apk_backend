@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../src/server.js";
+import app from "../src/app.js";
 import Service from "../src/models/serviceModel.js";
 import {
   createTestUser,

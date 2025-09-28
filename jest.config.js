@@ -14,8 +14,7 @@ export default {
   // Coverage configuration
   collectCoverageFrom: [
     "src/**/*.js",
-    "!src/server.js",
-    "!src/server.production.js",
+    "!src/index.js",
     "!src/config/**",
     "!src/utils/databaseMonitoring.js",
   ],

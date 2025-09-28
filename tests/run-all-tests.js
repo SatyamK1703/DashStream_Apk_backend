@@ -191,8 +191,7 @@ async function generateCoverageReport() {
       "--coverageReporters=lcov",
       "--collectCoverageFrom=src/**/*.js",
       "--coveragePathIgnorePatterns=/node_modules/",
-      "--coveragePathIgnorePatterns=src/server.js",
-      "--coveragePathIgnorePatterns=src/server.production.js",
+      "--coveragePathIgnorePatterns=src/index.js",
     ]);
 
     log.success("Coverage report generated successfully");

@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../src/server.js";
+import app from "../src/app.js";
 import Notification from "../src/models/notificationModel.js";
 import DeviceToken from "../src/models/deviceTokenModel.js";
 import {

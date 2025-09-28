@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../src/server.js";
+import app from "../src/app.js";
 import Payment from "../src/models/paymentModel.js";
 import Booking from "../src/models/bookingModel.js";
 import Service from "../src/models/serviceModel.js";

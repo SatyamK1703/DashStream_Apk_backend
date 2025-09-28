@@ -65,7 +65,7 @@ npm run test:api
 ```
 
 ## Main Entry Points
-**Server Entry**: src/server.js (development), src/server.production.js (production)
+**Server Entry**: src/index.js (development), src/index (production)
 **API Routes**:
 - /api/auth - Authentication endpoints
 - /api/users - User management
