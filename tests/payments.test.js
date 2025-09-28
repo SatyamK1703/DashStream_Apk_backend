@@ -11,7 +11,7 @@ import {
   cleanupTestData,
 } from "./helpers/testHelpers.js";
 
-describe("Payment Endpoints", () => {
+describe("Payment API_ENDPOINTS", () => {
   let customer, admin;
   let customerToken, adminToken;
   let testBooking, testService, testPayment;

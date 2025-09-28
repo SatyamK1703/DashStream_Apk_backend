@@ -1,4 +1,4 @@
-import express from 'express';
+import express from "express";
 
 /**
  * Middleware to capture raw body for webhook signature verification
@@ -6,11 +6,11 @@ import express from 'express';
  * but express.json() middleware parses the body and makes it unavailable
  */
 export const rawBodyMiddleware = (req, res, next) => {
-  if (req.originalUrl === '/api/payments/webhook') {
+  if (req.originalUrl === "/api/payments/webhook") {
     // For webhook endpoint, use raw body parser
-    express.raw({ type: 'application/json' })(req, res, next);
+    express.raw({ type: "application/json" })(req, res, next);
   } else {
-    // For all other endpoints, use JSON parser
+    // For all other API_ENDPOINTS, use JSON parser
     express.json()(req, res, next);
   }
 };
@@ -19,7 +19,7 @@ export const rawBodyMiddleware = (req, res, next) => {
  * Middleware to save raw body for webhook verification
  */
 export const saveRawBody = (req, res, next) => {
-  if (req.originalUrl === '/api/payments/webhook' && req.body) {
+  if (req.originalUrl === "/api/payments/webhook" && req.body) {
     // Save raw body for webhook signature verification
     req.rawBody = req.body.toString();
     // Parse the raw body for further processing
@@ -27,8 +27,8 @@ export const saveRawBody = (req, res, next) => {
       req.body = JSON.parse(req.rawBody);
     } catch (error) {
       return res.status(400).json({
-        status: 'error',
-        message: 'Invalid JSON payload'
+        status: "error",
+        message: "Invalid JSON payload",
       });
     }
   }

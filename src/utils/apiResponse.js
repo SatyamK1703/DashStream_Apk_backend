@@ -1,6 +1,6 @@
 /**
  * API Response Utility
- * Provides standardized response format for all API endpoints
+ * Provides standardized response format for all API API_ENDPOINTS
  */
 
 /**

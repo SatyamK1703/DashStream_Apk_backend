@@ -1,6 +1,6 @@
 # DashStream API Test Suite
 
-Comprehensive test suite for the DashStream Backend API covering all endpoints with authentication, authorization, validation, and error handling tests.
+Comprehensive test suite for the DashStream Backend API covering all API_ENDPOINTS with authentication, authorization, validation, and error handling tests.
 
 ## 📋 Test Coverage
 
@@ -61,7 +61,7 @@ Comprehensive test suite for the DashStream Backend API covering all endpoints w
 - ✅ Professional verification
 
 ### Integration Tests (`integration/health.test.js`)
-- ✅ Health check endpoints
+- ✅ Health check API_ENDPOINTS
 - ✅ CORS configuration
 - ✅ Rate limiting
 - ✅ Security headers

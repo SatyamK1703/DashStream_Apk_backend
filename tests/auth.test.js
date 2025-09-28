@@ -10,7 +10,7 @@ import {
   cleanupTestData,
 } from "./helpers/testHelpers.js";
 
-describe("Auth Endpoints", () => {
+describe("Auth API_ENDPOINTS", () => {
   beforeEach(async () => {
     await cleanupTestData();
   });

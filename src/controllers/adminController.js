@@ -1,200 +1,220 @@
-import User from '../models/userModel.js';
-import Booking from '../models/bookingModel.js';
-import Service from '../models/serviceModel.js';
-import Payment from '../models/paymentModel.js';
-import mongoose from 'mongoose';
+import User from "../models/userModel.js";
+import Booking from "../models/bookingModel.js";
+import Service from "../models/serviceModel.js";
+import Payment from "../models/paymentModel.js";
+import mongoose from "mongoose";
+import { sendError, sendSuccess } from "../utils/responseHandler.js";
 
 // Get dashboard statistics
 export const getDashboardStats = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can access dashboard stats.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can access dashboard stats.",
+        403
+      );
     }
-    
+
     // Get counts
-    const userCount = await User.countDocuments({ role: 'customer' });
-    const professionalCount = await User.countDocuments({ role: 'professional' });
+    const userCount = await User.countDocuments({ role: "customer" });
+    const professionalCount = await User.countDocuments({
+      role: "professional",
+    });
     const bookingCount = await Booking.countDocuments();
     const serviceCount = await Service.countDocuments();
-    
+
     // Get revenue stats - using 'captured' status as per Payment model
-    const payments = await Payment.find({ status: 'captured' });
-    const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    
+    const payments = await Payment.find({ status: "captured" });
+    const totalRevenue = payments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    );
+
     // Get recent bookings with error handling
     let recentBookings = [];
     try {
       recentBookings = await Booking.find()
-        .sort('-createdAt')
+        .sort("-createdAt")
         .limit(5)
-        .populate('customer', 'name')
-        .populate('professional', 'name')
-        .populate('service', 'name');
+        .populate("customer", "name")
+        .populate("professional", "name")
+        .populate("service", "name");
     } catch (error) {
-      console.error('Error fetching recent bookings:', error.message);
+      console.error("Error fetching recent bookings:", error.message);
       recentBookings = [];
     }
-    
+
     // Get top professionals by booking count with error handling
     let topProfessionals = [];
     let formattedTopProfessionals = [];
     try {
       topProfessionals = await Booking.aggregate([
         { $match: { professional: { $ne: null } } }, // Only bookings with assigned professionals
-        { $group: {
-          _id: '$professional',
-          bookingCount: { $sum: 1 },
-          totalRevenue: { $sum: '$totalAmount' }
-        }},
+        {
+          $group: {
+            _id: "$professional",
+            bookingCount: { $sum: 1 },
+            totalRevenue: { $sum: "$totalAmount" },
+          },
+        },
         { $sort: { bookingCount: -1 } },
-        { $limit: 5 }
+        { $limit: 5 },
       ]);
-      
+
       if (topProfessionals.length > 0) {
         // Populate professional details
-        const populatedTopProfessionals = await User.populate(topProfessionals, {
-          path: '_id',
-          select: 'name profileImage rating'
-        });
-        
+        const populatedTopProfessionals = await User.populate(
+          topProfessionals,
+          {
+            path: "_id",
+            select: "name profileImage rating",
+          }
+        );
+
         // Format top professionals
         formattedTopProfessionals = populatedTopProfessionals
-          .filter(item => item._id) // Filter out null professionals
-          .map(item => ({
+          .filter((item) => item._id) // Filter out null professionals
+          .map((item) => ({
             id: item._id._id,
             name: item._id.name,
-            image: item._id.profileImage?.url || '',
+            image: item._id.profileImage?.url || "",
             rating: item._id.rating || 0,
             bookingCount: item.bookingCount,
-            revenue: item.totalRevenue || 0
+            revenue: item.totalRevenue || 0,
           }));
       }
     } catch (error) {
-      console.error('Error fetching top professionals:', error.message);
+      console.error("Error fetching top professionals:", error.message);
       formattedTopProfessionals = [];
     }
-    
+
     // Get booking stats by day for the last 7 days with error handling
-    const last7Days = [...Array(7)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split('T')[0];
-    }).reverse();
-    
+    const last7Days = [...Array(7)]
+      .map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return d.toISOString().split("T")[0];
+      })
+      .reverse();
+
     let bookingsByDay = [];
     try {
       bookingsByDay = await Booking.aggregate([
         {
           $match: {
-            createdAt: { $gte: new Date(last7Days[0]) }
-          }
+            createdAt: { $gte: new Date(last7Days[0]) },
+          },
         },
         {
           $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
             count: { $sum: 1 },
-            revenue: { $sum: '$totalAmount' }
-          }
+            revenue: { $sum: "$totalAmount" },
+          },
         },
-        { $sort: { _id: 1 } }
+        { $sort: { _id: 1 } },
       ]);
     } catch (error) {
-      console.error('Error fetching daily booking stats:', error.message);
+      console.error("Error fetching daily booking stats:", error.message);
       bookingsByDay = [];
     }
-    
+
     // Format chart data
     const dailyChartData = {
-      labels: last7Days.map(date => date.split('-')[2]), // Just the day
+      labels: last7Days.map((date) => date.split("-")[2]), // Just the day
       datasets: [
         {
-          data: last7Days.map(date => {
-            const found = bookingsByDay.find(item => item._id === date);
+          data: last7Days.map((date) => {
+            const found = bookingsByDay.find((item) => item._id === date);
             return found ? found.count : 0;
-          })
-        }
-      ]
+          }),
+        },
+      ],
     };
-    
+
     const dailyRevenueData = {
-      labels: last7Days.map(date => date.split('-')[2]), // Just the day
+      labels: last7Days.map((date) => date.split("-")[2]), // Just the day
       datasets: [
         {
-          data: last7Days.map(date => {
-            const found = bookingsByDay.find(item => item._id === date);
+          data: last7Days.map((date) => {
+            const found = bookingsByDay.find((item) => item._id === date);
             return found ? found.revenue : 0;
-          })
-        }
-      ]
+          }),
+        },
+      ],
     };
-    
+
     // Get weekly data (last 4 weeks)
-    const last4Weeks = [...Array(4)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (i * 7));
-      return d.toISOString().split('T')[0];
-    }).reverse();
-    
+    const last4Weeks = [...Array(4)]
+      .map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i * 7);
+        return d.toISOString().split("T")[0];
+      })
+      .reverse();
+
     // Monthly data (last 6 months) with error handling
-    const last6Months = [...Array(6)].map((_, i) => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      return d.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
-    }).reverse();
-    
+    const last6Months = [...Array(6)]
+      .map((_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        return d.toISOString().split("T")[0].substring(0, 7); // YYYY-MM
+      })
+      .reverse();
+
     let bookingsByMonth = [];
     try {
       bookingsByMonth = await Booking.aggregate([
         {
           $match: {
-            createdAt: { $gte: new Date(last6Months[0] + '-01') }
-          }
+            createdAt: { $gte: new Date(last6Months[0] + "-01") },
+          },
         },
         {
           $group: {
-            _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+            _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
             count: { $sum: 1 },
-            revenue: { $sum: '$totalAmount' }
-          }
+            revenue: { $sum: "$totalAmount" },
+          },
         },
-        { $sort: { _id: 1 } }
+        { $sort: { _id: 1 } },
       ]);
     } catch (error) {
-      console.error('Error fetching monthly booking stats:', error.message);
+      console.error("Error fetching monthly booking stats:", error.message);
       bookingsByMonth = [];
     }
-    
+
     const monthlyChartData = {
-      labels: last6Months.map(date => {
-        const [year, month] = date.split('-');
+      labels: last6Months.map((date) => {
+        const [year, month] = date.split("-");
         return `${month}/${year.substring(2)}`;
       }),
       datasets: [
         {
-          data: last6Months.map(date => {
-            const found = bookingsByMonth.find(item => item._id === date);
+          data: last6Months.map((date) => {
+            const found = bookingsByMonth.find((item) => item._id === date);
             return found ? found.count : 0;
-          })
-        }
-      ]
+          }),
+        },
+      ],
     };
-    
+
     const monthlyRevenueData = {
-      labels: last6Months.map(date => {
-        const [year, month] = date.split('-');
+      labels: last6Months.map((date) => {
+        const [year, month] = date.split("-");
         return `${month}/${year.substring(2)}`;
       }),
       datasets: [
         {
-          data: last6Months.map(date => {
-            const found = bookingsByMonth.find(item => item._id === date);
+          data: last6Months.map((date) => {
+            const found = bookingsByMonth.find((item) => item._id === date);
             return found ? found.revenue : 0;
-          })
-        }
-      ]
+          }),
+        },
+      ],
     };
-    
+
     res.sendSuccess(
       {
         stats: {
@@ -202,33 +222,33 @@ export const getDashboardStats = async (req, res, next) => {
           professionals: professionalCount,
           bookings: bookingCount,
           services: serviceCount,
-          revenue: totalRevenue
+          revenue: totalRevenue,
         },
-        recentBookings: recentBookings.map(booking => ({
+        recentBookings: recentBookings.map((booking) => ({
           id: booking._id,
-          customerName: booking.customer?.name || 'Unknown Customer',
-          professionalName: booking.professional?.name || 'Unassigned',
-          serviceName: booking.service?.name || 'Unknown Service',
+          customerName: booking.customer?.name || "Unknown Customer",
+          professionalName: booking.professional?.name || "Unassigned",
+          serviceName: booking.service?.name || "Unknown Service",
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
-          amount: booking.totalAmount || 0
+          amount: booking.totalAmount || 0,
         })),
         topProfessionals: formattedTopProfessionals,
         chartData: {
           bookings: {
             daily: dailyChartData,
             weekly: monthlyChartData, // Simplified for now
-            monthly: monthlyChartData
+            monthly: monthlyChartData,
           },
           revenue: {
             daily: dailyRevenueData,
             weekly: monthlyRevenueData, // Simplified for now
-            monthly: monthlyRevenueData
-          }
-        }
+            monthly: monthlyRevenueData,
+          },
+        },
       },
-      'Dashboard stats retrieved successfully'
+      "Dashboard stats retrieved successfully"
     );
   } catch (error) {
     next(error);
@@ -239,33 +259,36 @@ export const getDashboardStats = async (req, res, next) => {
 export const getAllUsers = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can access user list.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can access user list.",
+        403
+      );
     }
-    
+
     const { role, search, page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
-    
+
     // Build query
     const query = {};
     if (role) query.role = role;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
       ];
     }
-    
+
     // Execute query with pagination
     const users = await User.find(query)
-      .sort('-createdAt')
+      .sort("-createdAt")
       .skip(skip)
       .limit(parseInt(limit));
-    
+
     // Get total count for pagination
     const total = await User.countDocuments(query);
-    
+
     res.sendSuccess(
       {
         users,
@@ -273,10 +296,10 @@ export const getAllUsers = async (req, res, next) => {
           total,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(total / limit)
-        }
+          pages: Math.ceil(total / limit),
+        },
       },
-      'Users retrieved successfully'
+      "Users retrieved successfully"
     );
   } catch (error) {
     next(error);
@@ -287,47 +310,55 @@ export const getAllUsers = async (req, res, next) => {
 export const getUserDetails = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can access user details.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can access user details.",
+        403
+      );
     }
-    
+
     const { userId } = req.params;
-    
+
     const user = await User.findById(userId);
-    
+
     if (!user) {
-      return res.sendError('User not found', 404);
+      return res.sendError("User not found", 404);
     }
-    
+
     // Get user's bookings if they are a customer or professional
     let bookings = [];
-    if (user.role === 'customer' || user.role === 'professional') {
-      const bookingQuery = user.role === 'customer' 
-        ? { customer: userId }
-        : { professional: userId };
-      
+    if (user.role === "customer" || user.role === "professional") {
+      const bookingQuery =
+        user.role === "customer"
+          ? { customer: userId }
+          : { professional: userId };
+
       bookings = await Booking.find(bookingQuery)
-        .sort('-createdAt')
+        .sort("-createdAt")
         .limit(5)
-        .populate('service', 'name')
-        .populate(user.role === 'customer' ? 'professional' : 'customer', 'name');
+        .populate("service", "name")
+        .populate(
+          user.role === "customer" ? "professional" : "customer",
+          "name"
+        );
     }
-    
+
     res.sendSuccess(
       {
         user,
-        bookings: bookings.map(booking => ({
+        bookings: bookings.map((booking) => ({
           id: booking._id,
           serviceName: booking.service.name,
-          otherPartyName: user.role === 'customer' 
-            ? booking.professional?.name || 'Unassigned'
-            : booking.customer.name,
+          otherPartyName:
+            user.role === "customer"
+              ? booking.professional?.name || "Unassigned"
+              : booking.customer.name,
           date: booking.scheduledDate,
           status: booking.status,
-          amount: booking.totalAmount
-        }))
+          amount: booking.totalAmount,
+        })),
       },
-      'User details retrieved successfully'
+      "User details retrieved successfully"
     );
   } catch (error) {
     next(error);
@@ -338,23 +369,23 @@ export const getUserDetails = async (req, res, next) => {
 export const createUser = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can create users.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError("Unauthorized. Only admins can create users.", 403);
     }
-    
+
     const { name, email, phone, role, password } = req.body;
-    
+
     // Validate required fields
     if (!name || !email || !phone || !role || !password) {
-      return res.sendError('Please provide all required fields', 400);
+      return res.sendError("Please provide all required fields", 400);
     }
-    
+
     // Check if user already exists
     const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
     if (existingUser) {
-      return res.sendError('User with this email or phone already exists', 400);
+      return res.sendError("User with this email or phone already exists", 400);
     }
-    
+
     // Create new user
     const user = new User({
       name,
@@ -363,20 +394,20 @@ export const createUser = async (req, res, next) => {
       role,
       password, // Will be hashed by the model pre-save hook
       isPhoneVerified: true, // Admin-created users are pre-verified
-      profileComplete: true
+      profileComplete: true,
     });
-    
+
     await user.save();
-    
+
     res.sendSuccess(
       {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
       },
-      'User created successfully'
+      "User created successfully"
     );
   } catch (error) {
     next(error);
@@ -387,28 +418,28 @@ export const createUser = async (req, res, next) => {
 export const updateUser = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can update users.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError("Unauthorized. Only admins can update users.", 403);
     }
-    
+
     const { userId } = req.params;
     const { name, email, phone, role, status } = req.body;
-    
+
     const user = await User.findById(userId);
-    
+
     if (!user) {
-      return res.sendError('User not found', 404);
+      return res.sendError("User not found", 404);
     }
-    
+
     // Update fields if provided
     if (name) user.name = name;
     if (email) user.email = email;
     if (phone) user.phone = phone;
     if (role) user.role = role;
     if (status) user.status = status;
-    
+
     await user.save();
-    
+
     res.sendSuccess(
       {
         id: user._id,
@@ -416,9 +447,9 @@ export const updateUser = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        status: user.status
+        status: user.status,
       },
-      'User updated successfully'
+      "User updated successfully"
     );
   } catch (error) {
     next(error);
@@ -429,36 +460,33 @@ export const updateUser = async (req, res, next) => {
 export const deleteUser = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can delete users.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError("Unauthorized. Only admins can delete users.", 403);
     }
-    
+
     const { userId } = req.params;
-    
+
     const user = await User.findById(userId);
-    
+
     if (!user) {
-      return res.sendError('User not found', 404);
+      return res.sendError("User not found", 404);
     }
-    
+
     // Check if user has associated bookings
     const bookingCount = await Booking.countDocuments({
-      $or: [{ customer: userId }, { professional: userId }]
+      $or: [{ customer: userId }, { professional: userId }],
     });
-    
+
     if (bookingCount > 0) {
       return res.sendError(
-        'Cannot delete user with associated bookings. Deactivate the account instead.',
+        "Cannot delete user with associated bookings. Deactivate the account instead.",
         400
       );
     }
-    
+
     await User.findByIdAndDelete(userId);
-    
-    res.sendSuccess(
-      { id: userId },
-      'User deleted successfully'
-    );
+
+    res.sendSuccess({ id: userId }, "User deleted successfully");
   } catch (error) {
     next(error);
   }
@@ -468,13 +496,16 @@ export const deleteUser = async (req, res, next) => {
 export const getAllBookings = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can access booking list.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can access booking list.",
+        403
+      );
     }
-    
+
     const { status, search, page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
-    
+
     // Build query
     const query = {};
     if (status) query.status = status;
@@ -482,45 +513,45 @@ export const getAllBookings = async (req, res, next) => {
       // Need to find bookings by customer or professional name
       // This requires a more complex approach with aggregation
       // For simplicity, we'll just search by booking ID for now
-      query._id = mongoose.Types.ObjectId.isValid(search) 
-        ? search 
+      query._id = mongoose.Types.ObjectId.isValid(search)
+        ? search
         : { $exists: true }; // If invalid ID, return all
     }
-    
+
     // Execute query with pagination
     const bookings = await Booking.find(query)
-      .populate('customer', 'name')
-      .populate('professional', 'name')
-      .populate('service', 'name')
-      .sort('-createdAt')
+      .populate("customer", "name")
+      .populate("professional", "name")
+      .populate("service", "name")
+      .sort("-createdAt")
       .skip(skip)
       .limit(parseInt(limit));
-    
+
     // Get total count for pagination
     const total = await Booking.countDocuments(query);
-    
+
     res.sendSuccess(
       {
-        bookings: bookings.map(booking => ({
+        bookings: bookings.map((booking) => ({
           id: booking._id,
           customerName: booking.customer.name,
-          professionalName: booking.professional?.name || 'Unassigned',
+          professionalName: booking.professional?.name || "Unassigned",
           serviceName: booking.service.name,
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
           paymentStatus: booking.paymentStatus,
           amount: booking.totalAmount,
-          createdAt: booking.createdAt
+          createdAt: booking.createdAt,
         })),
         pagination: {
           total,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(total / limit)
-        }
+          pages: Math.ceil(total / limit),
+        },
       },
-      'Bookings retrieved successfully'
+      "Bookings retrieved successfully"
     );
   } catch (error) {
     next(error);
@@ -531,25 +562,28 @@ export const getAllBookings = async (req, res, next) => {
 export const getBookingDetails = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can access booking details.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can access booking details.",
+        403
+      );
     }
-    
+
     const { bookingId } = req.params;
-    
+
     const booking = await Booking.findById(bookingId)
-      .populate('customer', 'name phone email')
-      .populate('professional', 'name phone email')
-      .populate('service', 'name description price')
-      .populate('address');
-    
+      .populate("customer", "name phone email")
+      .populate("professional", "name phone email")
+      .populate("service", "name description price")
+      .populate("address");
+
     if (!booking) {
-      return res.sendError('Booking not found', 404);
+      return res.sendError("Booking not found", 404);
     }
-    
+
     // Get payment information
     const payment = await Payment.findOne({ bookingId });
-    
+
     res.sendSuccess(
       {
         booking: {
@@ -558,19 +592,21 @@ export const getBookingDetails = async (req, res, next) => {
             id: booking.customer._id,
             name: booking.customer.name,
             phone: booking.customer.phone,
-            email: booking.customer.email
+            email: booking.customer.email,
           },
-          professional: booking.professional ? {
-            id: booking.professional._id,
-            name: booking.professional.name,
-            phone: booking.professional.phone,
-            email: booking.professional.email
-          } : null,
+          professional: booking.professional
+            ? {
+                id: booking.professional._id,
+                name: booking.professional.name,
+                phone: booking.professional.phone,
+                email: booking.professional.email,
+              }
+            : null,
           service: {
             id: booking.service._id,
             name: booking.service.name,
             description: booking.service.description,
-            price: booking.service.price
+            price: booking.service.price,
           },
           address: booking.address,
           scheduledDate: booking.scheduledDate,
@@ -579,18 +615,20 @@ export const getBookingDetails = async (req, res, next) => {
           paymentStatus: booking.paymentStatus,
           totalAmount: booking.totalAmount,
           notes: booking.notes,
-          payment: payment ? {
-            id: payment._id,
-            method: payment.paymentMethod,
-            status: payment.status,
-            razorpayOrderId: payment.razorpayOrderId,
-            createdAt: payment.createdAt
-          } : null,
+          payment: payment
+            ? {
+                id: payment._id,
+                method: payment.paymentMethod,
+                status: payment.status,
+                razorpayOrderId: payment.razorpayOrderId,
+                createdAt: payment.createdAt,
+              }
+            : null,
           createdAt: booking.createdAt,
-          updatedAt: booking.updatedAt
-        }
+          updatedAt: booking.updatedAt,
+        },
       },
-      'Booking details retrieved successfully'
+      "Booking details retrieved successfully"
     );
   } catch (error) {
     next(error);
@@ -601,102 +639,162 @@ export const getBookingDetails = async (req, res, next) => {
 export const updateBooking = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can update bookings.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can update bookings.",
+        403
+      );
     }
-    
+
     const { bookingId } = req.params;
-    const { status, professionalId, scheduledDate, scheduledTime, notes } = req.body;
-    
+    const { status, professionalId, scheduledDate, scheduledTime, notes } =
+      req.body;
+
     const booking = await Booking.findById(bookingId);
-    
+
     if (!booking) {
-      return res.sendError('Booking not found', 404);
+      return res.sendError("Booking not found", 404);
     }
-    
+
     // Update fields if provided
     if (status) booking.status = status;
     if (professionalId) {
       // Verify professional exists
-      const professional = await User.findOne({ 
+      const professional = await User.findOne({
         _id: professionalId,
-        role: 'professional'
+        role: "professional",
       });
-      
+
       if (!professional) {
-        return res.sendError('Professional not found', 404);
+        return res.sendError("Professional not found", 404);
       }
-      
+
       booking.professional = professionalId;
     }
     if (scheduledDate) booking.scheduledDate = scheduledDate;
     if (scheduledTime) booking.scheduledTime = scheduledTime;
     if (notes) booking.notes = notes;
-    
+
     await booking.save();
-    
+
     res.sendSuccess(
       {
         id: booking._id,
         status: booking.status,
         professionalId: booking.professional,
         scheduledDate: booking.scheduledDate,
-        scheduledTime: booking.scheduledTime
+        scheduledTime: booking.scheduledTime,
       },
-      'Booking updated successfully'
+      "Booking updated successfully"
     );
   } catch (error) {
     next(error);
   }
 };
+
+// ✅ Cancel Booking
+export const cancelBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendError(res, "Booking not found", 404);
+    }
+
+    if (booking.status === "cancelled") {
+      return sendError(res, "Booking already cancelled", 400);
+    }
+
+    booking.status = "cancelled";
+    if (reason) booking.cancellationReason = reason;
+    await booking.save();
+
+    sendSuccess(res, { booking }, "Booking cancelled successfully");
+  } catch (error) {
+    console.error("Cancel booking error:", error);
+    sendError(res, "Failed to cancel booking");
+  }
+};
+
+// ✅ Update Booking Status
+export const updateBookingStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ["pending", "confirmed", "completed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return sendError(res, "Invalid booking status", 400);
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendError(res, "Booking not found", 404);
+    }
+
+    booking.status = status;
+    await booking.save();
+
+    sendSuccess(res, { booking }, "Booking status updated successfully");
+  } catch (error) {
+    console.error("Update booking status error:", error);
+    sendError(res, "Failed to update booking status");
+  }
+};
+
 // Get all professionals (with filtering)
 export const getAllProfessionals = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can access professional list.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can access professional list.",
+        403
+      );
     }
-    
+
     const { status, search, page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
-    
+
     // Build query for professionals only
-    const query = { role: 'professional' };
+    const query = { role: "professional" };
     if (status) query.status = status;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
       ];
     }
-    
+
     // Execute query with pagination
     const professionals = await User.find(query)
-      
-      .sort('-createdAt')
+
+      .sort("-createdAt")
       .skip(skip)
       .limit(parseInt(limit));
-    
+
     // Get total count for pagination
     const total = await User.countDocuments(query);
-    
+
     // Get booking counts for each professional
-    const professionalIds = professionals.map(p => p._id);
+    const professionalIds = professionals.map((p) => p._id);
     const bookingCounts = await Booking.aggregate([
       { $match: { professional: { $in: professionalIds } } },
-      { $group: { _id: '$professional', count: { $sum: 1 } } }
+      { $group: { _id: "$professional", count: { $sum: 1 } } },
     ]);
-    
+
     // Create a map for quick lookup
     const bookingCountMap = {};
-    bookingCounts.forEach(item => {
+    bookingCounts.forEach((item) => {
       bookingCountMap[item._id.toString()] = item.count;
     });
-    
+
     res.sendSuccess(
       {
-        professionals: professionals.map(prof => ({
+        professionals: professionals.map((prof) => ({
           id: prof._id,
           name: prof.name,
           email: prof.email,
@@ -707,16 +805,16 @@ export const getAllProfessionals = async (req, res, next) => {
           totalBookings: bookingCountMap[prof._id.toString()] || 0,
           specializations: prof.professionalInfo?.specializations || [],
           rating: prof.professionalInfo?.rating || 0,
-          createdAt: prof.createdAt
+          createdAt: prof.createdAt,
         })),
         pagination: {
           total,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(total / limit)
-        }
+          pages: Math.ceil(total / limit),
+        },
       },
-      'Professionals retrieved successfully'
+      "Professionals retrieved successfully"
     );
   } catch (error) {
     next(error);
@@ -727,60 +825,84 @@ export const getAllProfessionals = async (req, res, next) => {
 export const getProfessionalDetails = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can access professional details.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can access professional details.",
+        403
+      );
     }
-    
+
     const { professionalId } = req.params;
-    
-    const professional = await User.findOne({ 
+
+    const professional = await User.findOne({
       _id: professionalId,
-      role: 'professional'
+      role: "professional",
     });
-    
+
     if (!professional) {
-      return res.sendError('Professional not found', 404);
+      return res.sendError("Professional not found", 404);
     }
-    
+
     // Get professional's bookings
     const bookings = await Booking.find({ professional: professionalId })
-      .sort('-createdAt')
+      .sort("-createdAt")
       .limit(10)
-      .populate('customer', 'name')
-      .populate('service', 'name');
-    
+      .populate("customer", "name")
+      .populate("service", "name");
+
     // Get professional's ratings and reviews
-    const reviews = await Booking.find({ 
+    const reviews = await Booking.find({
       professional: professionalId,
-      rating: { $exists: true }
+      rating: { $exists: true },
     })
-      .populate('customer', 'name')
-      .sort('-createdAt')
+      .populate("customer", "name")
+      .sort("-createdAt")
       .limit(5);
-    
+
     res.sendSuccess(
       {
         professional,
-        bookings: bookings.map(booking => ({
+        bookings: bookings.map((booking) => ({
           id: booking._id,
           customerName: booking.customer.name,
           serviceName: booking.service.name,
           date: booking.scheduledDate,
           status: booking.status,
-          amount: booking.totalAmount
+          amount: booking.totalAmount,
         })),
-        reviews: reviews.map(review => ({
+        reviews: reviews.map((review) => ({
           id: review._id,
           customerName: review.customer.name,
           rating: review.rating,
           review: review.review,
-          date: review.createdAt
-        }))
+          date: review.createdAt,
+        })),
       },
-      'Professional details retrieved successfully'
+      "Professional details retrieved successfully"
     );
   } catch (error) {
     next(error);
+  }
+};
+
+// ✅ Get professional by ID
+export const getProfessionalById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const professional = await User.findOne({
+      _id: id,
+      role: "professional",
+    }).select("-otp -otpExpires");
+
+    if (!professional) {
+      return sendError(res, "Professional not found", 404);
+    }
+
+    sendSuccess(res, { professional }, "Professional fetched successfully");
+  } catch (error) {
+    console.error("Get professional error:", error);
+    sendError(res, "Failed to fetch professional");
   }
 };
 
@@ -788,39 +910,44 @@ export const getProfessionalDetails = async (req, res, next) => {
 export const updateProfessional = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can update professionals.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can update professionals.",
+        403
+      );
     }
-    
+
     const { professionalId } = req.params;
-    const { name, email, phone, status, specializations, hourlyRate } = req.body;
-    
+    const { name, email, phone, status, specializations, hourlyRate } =
+      req.body;
+
     const professional = await User.findOne({
       _id: professionalId,
-      role: 'professional'
+      role: "professional",
     });
-    
+
     if (!professional) {
-      return res.sendError('Professional not found', 404);
+      return res.sendError("Professional not found", 404);
     }
-    
+
     // Update basic fields if provided
     if (name) professional.name = name;
     if (email) professional.email = email;
     if (phone) professional.phone = phone;
     if (status) professional.status = status;
-    
+
     // Update professional info
     if (specializations || hourlyRate) {
       if (!professional.professionalInfo) {
         professional.professionalInfo = {};
       }
-      if (specializations) professional.professionalInfo.specializations = specializations;
+      if (specializations)
+        professional.professionalInfo.specializations = specializations;
       if (hourlyRate) professional.professionalInfo.hourlyRate = hourlyRate;
     }
-    
+
     await professional.save();
-    
+
     res.sendSuccess(
       {
         id: professional._id,
@@ -828,9 +955,9 @@ export const updateProfessional = async (req, res, next) => {
         email: professional.email,
         phone: professional.phone,
         status: professional.status,
-        professionalInfo: professional.professionalInfo
+        professionalInfo: professional.professionalInfo,
       },
-      'Professional updated successfully'
+      "Professional updated successfully"
     );
   } catch (error) {
     next(error);
@@ -841,47 +968,203 @@ export const updateProfessional = async (req, res, next) => {
 export const updateProfessionalVerification = async (req, res, next) => {
   try {
     // Verify user is an admin
-    if (req.user.role !== 'admin') {
-      return res.sendError('Unauthorized. Only admins can update verification status.', 403);
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can update verification status.",
+        403
+      );
     }
-    
+
     const { professionalId } = req.params;
     const { isVerified, verificationNotes } = req.body;
-    
+
     const professional = await User.findOne({
       _id: professionalId,
-      role: 'professional'
+      role: "professional",
     });
-    
+
     if (!professional) {
-      return res.sendError('Professional not found', 404);
+      return res.sendError("Professional not found", 404);
     }
-    
+
     // Initialize professionalInfo if it doesn't exist
     if (!professional.professionalInfo) {
       professional.professionalInfo = {};
     }
-    
+
     // Update verification status
     professional.professionalInfo.isVerified = isVerified;
     if (verificationNotes) {
       professional.professionalInfo.verificationNotes = verificationNotes;
     }
     professional.professionalInfo.verificationDate = new Date();
-    
+
     await professional.save();
-    
+
     res.sendSuccess(
       {
         id: professional._id,
         name: professional.name,
         isVerified: professional.professionalInfo.isVerified,
         verificationNotes: professional.professionalInfo.verificationNotes,
-        verificationDate: professional.professionalInfo.verificationDate
+        verificationDate: professional.professionalInfo.verificationDate,
       },
-      `Professional ${isVerified ? 'verified' : 'unverified'} successfully`
+      `Professional ${isVerified ? "verified" : "unverified"} successfully`
     );
   } catch (error) {
     next(error);
+  }
+};
+
+// ✅ Verify / Reject Professional
+export const verifyProfessional = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verified } = req.body; // true = verify, false = reject
+
+    const professional = await User.findOne({ _id: id, role: "professional" });
+    if (!professional) {
+      return sendError(res, "Professional not found", 404);
+    }
+
+    professional.profileComplete = verified; // using profileComplete as "verified" flag
+    await professional.save();
+
+    sendSuccess(
+      res,
+      { professional },
+      verified ? "Professional verified successfully" : "Professional rejected"
+    );
+  } catch (error) {
+    console.error("Verify professional error:", error);
+    sendError(res, "Failed to update professional verification");
+  }
+};
+
+// ✅ Assign Professional to Booking
+export const assignProfessional = async (req, res) => {
+  try {
+    const { bookingId } = req.params; // bookingId
+    const { professionalId } = req.body;
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return sendError(res, "Booking not found", 404);
+    }
+
+    const professional = await User.findOne({
+      _id: professionalId,
+      role: "professional",
+    });
+    if (!professional) {
+      return sendError(res, "Professional not found", 404);
+    }
+
+    booking.professional = professional._id;
+    booking.status = "confirmed"; // auto-confirm when assigned
+    await booking.save();
+
+    sendSuccess(
+      res,
+      { booking },
+      "Professional assigned to booking successfully"
+    );
+  } catch (error) {
+    console.error("Assign professional error:", error);
+    sendError(res, "Failed to assign professional to booking");
+  }
+};
+
+// ✅ Get all services
+export const getAllServices = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const skip = (page - 1) * limit;
+
+    const query = search ? { name: { $regex: search, $options: "i" } } : {};
+
+    const services = await Service.find(query)
+      .skip(Number(skip))
+      .limit(Number(limit));
+
+    const total = await Service.countDocuments(query);
+
+    sendSuccess(
+      res,
+      {
+        services,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          pages: Math.ceil(total / limit),
+        },
+      },
+      "Services fetched successfully"
+    );
+  } catch (error) {
+    console.error("Get services error:", error);
+    sendError(res, "Failed to fetch services");
+  }
+};
+
+// ✅ Get service by ID
+export const getServiceById = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+    const service = await Service.findById(serviceId);
+
+    if (!service) return sendError(res, "Service not found", 404);
+
+    sendSuccess(res, { service }, "Service fetched successfully");
+  } catch (error) {
+    console.error("Get service error:", error);
+    sendError(res, "Failed to fetch service");
+  }
+};
+
+// ✅ Create service
+export const createService = async (req, res) => {
+  try {
+    const service = await Service.create(req.body);
+
+    sendSuccess(res, { service }, "Service created successfully", 201);
+  } catch (error) {
+    console.error("Create service error:", error);
+    sendError(res, "Failed to create service");
+  }
+};
+
+// ✅ Update service
+export const updateService = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    const service = await Service.findByIdAndUpdate(serviceId, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!service) return sendError(res, "Service not found", 404);
+
+    sendSuccess(res, { service }, "Service updated successfully");
+  } catch (error) {
+    console.error("Update service error:", error);
+    sendError(res, "Failed to update service");
+  }
+};
+
+// ✅ Delete service
+export const deleteService = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    const service = await Service.findByIdAndDelete(serviceId);
+    if (!service) return sendError(res, "Service not found", 404);
+
+    sendSuccess(res, null, "Service deleted successfully");
+  } catch (error) {
+    console.error("Delete service error:", error);
+    sendError(res, "Failed to delete service");
   }
 };

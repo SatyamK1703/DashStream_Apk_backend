@@ -1,4 +1,4 @@
-// Simple in-memory cache middleware for GET endpoints
+// Simple in-memory cache middleware for GET API_ENDPOINTS
 // Note: For multi-instance deployments, replace with Redis.
 
 const cacheStore = new Map();
@@ -7,20 +7,20 @@ const cacheStore = new Map();
 const defaultKey = (req) => {
   const params = new URLSearchParams(req.query);
   // Sort the params to avoid different orders producing different keys
-  const sorted = [...params.entries()].sort(([a],[b]) => a.localeCompare(b));
+  const sorted = [...params.entries()].sort(([a], [b]) => a.localeCompare(b));
   const normalized = new URLSearchParams(sorted).toString();
-  return `${req.originalUrl.split('?')[0]}?${normalized}`;
+  return `${req.originalUrl.split("?")[0]}?${normalized}`;
 };
 
 export function cacheGet(ttlMs = 60_000, keyFn = defaultKey) {
   return (req, res, next) => {
-    if (req.method !== 'GET') return next();
+    if (req.method !== "GET") return next();
 
     const key = keyFn(req);
     const hit = cacheStore.get(key);
 
     if (hit && hit.expires > Date.now()) {
-      res.set('X-Cache', 'HIT');
+      res.set("X-Cache", "HIT");
       // Preserve status code
       return res.status(hit.statusCode).json(hit.payload);
     }
@@ -35,8 +35,8 @@ export function cacheGet(ttlMs = 60_000, keyFn = defaultKey) {
           expires: Date.now() + ttlMs,
         });
         // Hint client caches
-        res.set('Cache-Control', `public, max-age=${Math.floor(ttlMs / 1000)}`);
-        res.set('X-Cache', 'MISS');
+        res.set("Cache-Control", `public, max-age=${Math.floor(ttlMs / 1000)}`);
+        res.set("X-Cache", "MISS");
       } catch (_) {
         // no-op if caching fails
       }
@@ -47,7 +47,7 @@ export function cacheGet(ttlMs = 60_000, keyFn = defaultKey) {
   };
 }
 
-export function cacheInvalidate(prefix = '') {
+export function cacheInvalidate(prefix = "") {
   // Remove all entries whose key starts with prefix
   for (const key of cacheStore.keys()) {
     if (!prefix || key.startsWith(prefix)) cacheStore.delete(key);

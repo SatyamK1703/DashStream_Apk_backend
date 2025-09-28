@@ -11,7 +11,7 @@ import {
   cleanupTestData,
 } from "./helpers/testHelpers.js";
 
-describe("User Endpoints", () => {
+describe("User API_ENDPOINTS", () => {
   beforeEach(async () => {
     await cleanupTestData();
   });

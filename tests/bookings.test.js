@@ -11,7 +11,7 @@ import {
   cleanupTestData,
 } from "./helpers/testHelpers.js";
 
-describe("Booking Endpoints", () => {
+describe("Booking API_ENDPOINTS", () => {
   let customer, professional, admin;
   let customerToken, professionalToken, adminToken;
   let testService;

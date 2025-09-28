@@ -9,7 +9,7 @@ import {
   cleanupTestData,
 } from "./helpers/testHelpers.js";
 
-describe("Offer Endpoints", () => {
+describe("Offer API_ENDPOINTS", () => {
   let user, admin;
   let userToken, adminToken;
   let testOffers;

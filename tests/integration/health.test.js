@@ -2,7 +2,7 @@ import request from "supertest";
 import app from "../../src/app.js";
 import { cleanupTestData } from "../helpers/testHelpers.js";
 
-describe("Health Check Endpoints", () => {
+describe("Health Check API_ENDPOINTS", () => {
   beforeEach(async () => {
     await cleanupTestData();
   });

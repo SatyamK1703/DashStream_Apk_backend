@@ -52,17 +52,17 @@ const testSuites = [
 
 // Individual test files with descriptions
 const testFiles = [
-  { file: "auth.test.js", description: "Authentication endpoints" },
-  { file: "users.test.js", description: "User management endpoints" },
-  { file: "bookings.test.js", description: "Booking management endpoints" },
-  { file: "services.test.js", description: "Service catalog endpoints" },
-  { file: "payments.test.js", description: "Payment processing endpoints" },
-  { file: "offers.test.js", description: "Offer management endpoints" },
+  { file: "auth.test.js", description: "Authentication API_ENDPOINTS" },
+  { file: "users.test.js", description: "User management API_ENDPOINTS" },
+  { file: "bookings.test.js", description: "Booking management API_ENDPOINTS" },
+  { file: "services.test.js", description: "Service catalog API_ENDPOINTS" },
+  { file: "payments.test.js", description: "Payment processing API_ENDPOINTS" },
+  { file: "offers.test.js", description: "Offer management API_ENDPOINTS" },
   {
     file: "notifications.test.js",
-    description: "Notification system endpoints",
+    description: "Notification system API_ENDPOINTS",
   },
-  { file: "admin.test.js", description: "Administrative endpoints" },
+  { file: "admin.test.js", description: "Administrative API_ENDPOINTS" },
   {
     file: "integration/health.test.js",
     description: "Health check and core functionality",

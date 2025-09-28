@@ -92,9 +92,9 @@ npm run setup        # Run initial setup
 npm run quick-start  # Quick start with setup
 ```
 
-## 🌐 API Endpoints
+## 🌐 API API_ENDPOINTS
 
-### Public Endpoints
+### Public API_ENDPOINTS
 - `GET /api/health` - Health check
 - `GET /api/services` - Get all services
 - `GET /api/services/popular` - Get popular services
@@ -105,7 +105,7 @@ npm run quick-start  # Quick start with setup
 - `GET /api/locations/search` - Search locations
 - `GET /api/locations/nearby` - Get nearby locations
 
-### Protected Endpoints (Require Authentication)
+### Protected API_ENDPOINTS (Require Authentication)
 - `GET /api/auth/me` - Get current user
 - `GET /api/users/profile` - Get user profile
 - `PATCH /api/users/profile` - Update user profile
@@ -115,7 +115,7 @@ npm run quick-start  # Quick start with setup
 - `GET /api/professionals/profile` - Get professional profile
 - `GET /api/vehicles/my-vehicles` - Get user vehicles
 
-### Admin Endpoints (Require Admin Role)
+### Admin API_ENDPOINTS (Require Admin Role)
 - `GET /api/admins/dashboard` - Admin dashboard
 - `GET /api/admins/services` - Manage services
 - `POST /api/admins/services` - Create service

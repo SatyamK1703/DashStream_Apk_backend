@@ -10,7 +10,7 @@ import {
   cleanupTestData,
 } from "./helpers/testHelpers.js";
 
-describe("Notification Endpoints", () => {
+describe("Notification API_ENDPOINTS", () => {
   let user, otherUser, admin;
   let userToken, otherUserToken, adminToken;
   let testNotifications;

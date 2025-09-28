@@ -13,7 +13,7 @@ import {
   generateTestEmail,
 } from "./helpers/testHelpers.js";
 
-describe("Admin Endpoints", () => {
+describe("Admin API_ENDPOINTS", () => {
   let admin, user, professional;
   let adminToken, userToken;
   let testService, testBooking;
