@@ -3,7 +3,6 @@ import Booking from "../models/bookingModel.js";
 import Service from "../models/serviceModel.js";
 import Payment from "../models/paymentModel.js";
 import mongoose from "mongoose";
-import { sendError, sendSuccess } from "../utils/responseHandler.js";
 
 // Get dashboard statistics
 export const getDashboardStats = async (req, res, next) => {
@@ -700,21 +699,21 @@ export const cancelBooking = async (req, res) => {
 
     const booking = await Booking.findById(id);
     if (!booking) {
-      return sendError(res, "Booking not found", 404);
+      return res.sendError("Booking not found", 404);
     }
 
     if (booking.status === "cancelled") {
-      return sendError(res, "Booking already cancelled", 400);
+      return res.sendError("Booking already cancelled", 400);
     }
 
     booking.status = "cancelled";
     if (reason) booking.cancellationReason = reason;
     await booking.save();
 
-    sendSuccess(res, { booking }, "Booking cancelled successfully");
+    res.sendSuccess({ booking }, "Booking cancelled successfully");
   } catch (error) {
     console.error("Cancel booking error:", error);
-    sendError(res, "Failed to cancel booking");
+    res.sendError("Failed to cancel booking");
   }
 };
 
@@ -726,21 +725,21 @@ export const updateBookingStatus = async (req, res) => {
 
     const validStatuses = ["pending", "confirmed", "completed", "cancelled"];
     if (!validStatuses.includes(status)) {
-      return sendError(res, "Invalid booking status", 400);
+      return res.sendError("Invalid booking status", 400);
     }
 
     const booking = await Booking.findById(id);
     if (!booking) {
-      return sendError(res, "Booking not found", 404);
+      return res.sendError("Booking not found", 404);
     }
 
     booking.status = status;
     await booking.save();
 
-    sendSuccess(res, { booking }, "Booking status updated successfully");
+    res.sendSuccess({ booking }, "Booking status updated successfully");
   } catch (error) {
     console.error("Update booking status error:", error);
-    sendError(res, "Failed to update booking status");
+    res.sendError("Failed to update booking status");
   }
 };
 
@@ -896,13 +895,13 @@ export const getProfessionalById = async (req, res) => {
     }).select("-otp -otpExpires");
 
     if (!professional) {
-      return sendError(res, "Professional not found", 404);
+      return res.sendError("Professional not found", 404);
     }
 
-    sendSuccess(res, { professional }, "Professional fetched successfully");
+    res.sendSuccess({ professional }, "Professional fetched successfully");
   } catch (error) {
     console.error("Get professional error:", error);
-    sendError(res, "Failed to fetch professional");
+    res.sendError("Failed to fetch professional");
   }
 };
 
@@ -1024,20 +1023,19 @@ export const verifyProfessional = async (req, res) => {
 
     const professional = await User.findOne({ _id: id, role: "professional" });
     if (!professional) {
-      return sendError(res, "Professional not found", 404);
+      return res.sendError("Professional not found", 404);
     }
 
     professional.profileComplete = verified; // using profileComplete as "verified" flag
     await professional.save();
 
-    sendSuccess(
-      res,
+    res.sendSuccess(
       { professional },
       verified ? "Professional verified successfully" : "Professional rejected"
     );
   } catch (error) {
     console.error("Verify professional error:", error);
-    sendError(res, "Failed to update professional verification");
+    res.sendError("Failed to update professional verification");
   }
 };
 
@@ -1049,7 +1047,7 @@ export const assignProfessional = async (req, res) => {
 
     const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return sendError(res, "Booking not found", 404);
+      return res.sendError("Booking not found", 404);
     }
 
     const professional = await User.findOne({
@@ -1057,21 +1055,20 @@ export const assignProfessional = async (req, res) => {
       role: "professional",
     });
     if (!professional) {
-      return sendError(res, "Professional not found", 404);
+      return res.sendError("Professional not found", 404);
     }
 
     booking.professional = professional._id;
     booking.status = "confirmed"; // auto-confirm when assigned
     await booking.save();
 
-    sendSuccess(
-      res,
+    res.sendSuccess(
       { booking },
       "Professional assigned to booking successfully"
     );
   } catch (error) {
     console.error("Assign professional error:", error);
-    sendError(res, "Failed to assign professional to booking");
+    res.sendError("Failed to assign professional to booking");
   }
 };
 
@@ -1089,8 +1086,7 @@ export const getAllServices = async (req, res) => {
 
     const total = await Service.countDocuments(query);
 
-    sendSuccess(
-      res,
+    res.sendSuccess(
       {
         services,
         pagination: {
@@ -1104,7 +1100,7 @@ export const getAllServices = async (req, res) => {
     );
   } catch (error) {
     console.error("Get services error:", error);
-    sendError(res, "Failed to fetch services");
+    res.sendError("Failed to fetch services");
   }
 };
 
@@ -1114,12 +1110,12 @@ export const getServiceById = async (req, res) => {
     const { serviceId } = req.params;
     const service = await Service.findById(serviceId);
 
-    if (!service) return sendError(res, "Service not found", 404);
+    if (!service) return res.sendError("Service not found", 404);
 
-    sendSuccess(res, { service }, "Service fetched successfully");
+    res.sendSuccess({ service }, "Service fetched successfully");
   } catch (error) {
     console.error("Get service error:", error);
-    sendError(res, "Failed to fetch service");
+    res.sendError("Failed to fetch service");
   }
 };
 
@@ -1128,10 +1124,10 @@ export const createService = async (req, res) => {
   try {
     const service = await Service.create(req.body);
 
-    sendSuccess(res, { service }, "Service created successfully", 201);
+    res.sendSuccess({ service }, "Service created successfully", 201);
   } catch (error) {
     console.error("Create service error:", error);
-    sendError(res, "Failed to create service");
+    res.sendError("Failed to create service");
   }
 };
 
@@ -1145,12 +1141,12 @@ export const updateService = async (req, res) => {
       runValidators: true,
     });
 
-    if (!service) return sendError(res, "Service not found", 404);
+    if (!service) return res.sendError("Service not found", 404);
 
-    sendSuccess(res, { service }, "Service updated successfully");
+    res.sendSuccess({ service }, "Service updated successfully");
   } catch (error) {
     console.error("Update service error:", error);
-    sendError(res, "Failed to update service");
+    res.sendError("Failed to update service");
   }
 };
 
@@ -1160,11 +1156,11 @@ export const deleteService = async (req, res) => {
     const { serviceId } = req.params;
 
     const service = await Service.findByIdAndDelete(serviceId);
-    if (!service) return sendError(res, "Service not found", 404);
+    if (!service) return res.sendError("Service not found", 404);
 
-    sendSuccess(res, null, "Service deleted successfully");
+    res.sendSuccess(null, "Service deleted successfully");
   } catch (error) {
     console.error("Delete service error:", error);
-    sendError(res, "Failed to delete service");
+    res.sendError("Failed to delete service");
   }
 };
