@@ -1,5 +1,5 @@
 import { asyncHandler } from "../middleware/errorMiddleware.js";
-import AppError from "../utils/appError.js";
+import { AppError } from "../utils/appError.js";
 import Notification from "../models/notificationModel.js";
 import { sendPushNotification } from "../services/notificationService.js";
 

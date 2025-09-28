@@ -1,6 +1,6 @@
 import User from "../models/userModel.js";
 import { asyncHandler } from "../middleware/errorMiddleware.js";
-import AppError from "../utils/appError.js";
+import { AppError } from "../utils/appError.js";
 import { cloudinary, upload } from "../utils/cloudinary.js";
 import Address from "../models/addressModel.js";
 import { cache, CACHE_TTL, CACHE_KEYS } from "../config/cache.js";
@@ -77,7 +77,7 @@ export const updateProfileImage = asyncHandler(async (req, res, next) => {
 
   try {
     // Get user with only profileImage field selected
-    const user = await User.findById(req.user.id).select('profileImage');
+    const user = await User.findById(req.user.id).select("profileImage");
 
     if (user.profileImage && user.profileImage.public_id) {
       await cloudinary.uploader.destroy(user.profileImage.public_id);
@@ -297,7 +297,7 @@ export const getCurrentUser = asyncHandler(async (req, res, next) => {
 
 //GET /api/users/:id
 export const getUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.params.id)
+  const user = await User.findById(req.params.id);
 
   if (!user) {
     return next(new AppError("No user found with that ID", 404));
@@ -378,7 +378,7 @@ export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
   const professional = await User.findOne({
     _id: req.params.id,
     role: "professional",
-  })
+  });
 
   if (!professional) {
     return next(new AppError("No professional found with that ID", 404));

@@ -7,7 +7,7 @@ import razorpayInstance, {
 } from "../config/razorpay.js";
 import Payment from "../models/paymentModel.js";
 import Booking from "../models/bookingModel.js";
-import AppError from "../utils/appError.js";
+import { AppError } from "../utils/appError.js";
 import crypto from "crypto";
 import { asyncHandler } from "../middleware/errorMiddleware.js";
 import * as paymentService from "../services/paymentService.js";

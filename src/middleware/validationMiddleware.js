@@ -2,7 +2,7 @@
  * Validation middleware
  * Provides request validation for the React Native app
  */
-import AppError from '../utils/appError.js';
+import { AppError } from "../utils/appError.js";
 
 /**
  * Validate request body against a schema
@@ -13,7 +13,7 @@ export const validateBody = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.body);
     if (error) {
-      const message = error.details.map(detail => detail.message).join(', ');
+      const message = error.details.map((detail) => detail.message).join(", ");
       return next(new AppError(message, 400));
     }
     next();
@@ -29,7 +29,7 @@ export const validateQuery = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.query);
     if (error) {
-      const message = error.details.map(detail => detail.message).join(', ');
+      const message = error.details.map((detail) => detail.message).join(", ");
       return next(new AppError(message, 400));
     }
     next();
@@ -45,7 +45,7 @@ export const validateParams = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.params);
     if (error) {
-      const message = error.details.map(detail => detail.message).join(', ');
+      const message = error.details.map((detail) => detail.message).join(", ");
       return next(new AppError(message, 400));
     }
     next();
@@ -56,7 +56,7 @@ export const validateParams = (schema) => {
  * Validate MongoDB ObjectId
  * @returns {Function} Express middleware function
  */
-export const validateObjectId = (paramName = 'id') => {
+export const validateObjectId = (paramName = "id") => {
   return (req, res, next) => {
     const id = req.params[paramName];
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {

@@ -1,20 +1,20 @@
 /**
  * Firebase Utilities for optimized database operations
  */
-import { database } from '../config/firebase.js';
-import AppError from './appError.js';
+import { database } from "../config/firebase.js";
+import { AppError } from "./appError.js";
 
 /**
  * Error codes for Firebase operations
  */
 export const FirebaseErrorCodes = {
-  CONNECTION_FAILED: 'FIREBASE_CONNECTION_FAILED',
-  WRITE_FAILED: 'FIREBASE_WRITE_FAILED',
-  READ_FAILED: 'FIREBASE_READ_FAILED',
-  PERMISSION_DENIED: 'FIREBASE_PERMISSION_DENIED',
-  INVALID_PATH: 'FIREBASE_INVALID_PATH',
-  TRANSACTION_FAILED: 'FIREBASE_TRANSACTION_FAILED',
-  BATCH_OPERATION_FAILED: 'FIREBASE_BATCH_OPERATION_FAILED'
+  CONNECTION_FAILED: "FIREBASE_CONNECTION_FAILED",
+  WRITE_FAILED: "FIREBASE_WRITE_FAILED",
+  READ_FAILED: "FIREBASE_READ_FAILED",
+  PERMISSION_DENIED: "FIREBASE_PERMISSION_DENIED",
+  INVALID_PATH: "FIREBASE_INVALID_PATH",
+  TRANSACTION_FAILED: "FIREBASE_TRANSACTION_FAILED",
+  BATCH_OPERATION_FAILED: "FIREBASE_BATCH_OPERATION_FAILED",
 };
 
 /**
@@ -34,7 +34,11 @@ class DatabaseConnectionPool {
    */
   getRef(path) {
     if (!path) {
-      throw new AppError('Invalid database path', 400, FirebaseErrorCodes.INVALID_PATH);
+      throw new AppError(
+        "Invalid database path",
+        400,
+        FirebaseErrorCodes.INVALID_PATH
+      );
     }
 
     if (this.refCache.has(path)) {
@@ -77,23 +81,23 @@ const connectionPool = new DatabaseConnectionPool();
 export const safeRead = async (path, options = {}) => {
   try {
     const ref = connectionPool.getRef(path);
-    const snapshot = await ref.once('value');
+    const snapshot = await ref.once("value");
     return options.raw ? snapshot : snapshot.val();
   } catch (error) {
     console.error(`Firebase read error at ${path}:`, error);
-    
+
     // Map Firebase errors to our error codes
     let errorCode = FirebaseErrorCodes.READ_FAILED;
     let statusCode = 500;
-    
-    if (error.code === 'PERMISSION_DENIED') {
+
+    if (error.code === "PERMISSION_DENIED") {
       errorCode = FirebaseErrorCodes.PERMISSION_DENIED;
       statusCode = 403;
     }
-    
+
     throw new AppError(
-      `Failed to read from Firebase: ${error.message}`, 
-      statusCode, 
+      `Failed to read from Firebase: ${error.message}`,
+      statusCode,
       errorCode
     );
   }
@@ -109,29 +113,29 @@ export const safeRead = async (path, options = {}) => {
 export const safeWrite = async (path, data, options = {}) => {
   try {
     const ref = connectionPool.getRef(path);
-    
+
     if (options.update) {
       await ref.update(data);
     } else {
       await ref.set(data);
     }
-    
+
     return { success: true };
   } catch (error) {
     console.error(`Firebase write error at ${path}:`, error);
-    
+
     // Map Firebase errors to our error codes
     let errorCode = FirebaseErrorCodes.WRITE_FAILED;
     let statusCode = 500;
-    
-    if (error.code === 'PERMISSION_DENIED') {
+
+    if (error.code === "PERMISSION_DENIED") {
       errorCode = FirebaseErrorCodes.PERMISSION_DENIED;
       statusCode = 403;
     }
-    
+
     throw new AppError(
-      `Failed to write to Firebase: ${error.message}`, 
-      statusCode, 
+      `Failed to write to Firebase: ${error.message}`,
+      statusCode,
       errorCode
     );
   }
@@ -143,28 +147,32 @@ export const safeWrite = async (path, data, options = {}) => {
  * @returns {Promise<Object>} Result of the batch operation
  */
 export const batchWrite = async (pathDataMap) => {
-  if (!pathDataMap || typeof pathDataMap !== 'object') {
-    throw new AppError('Invalid batch write data', 400, FirebaseErrorCodes.INVALID_PATH);
+  if (!pathDataMap || typeof pathDataMap !== "object") {
+    throw new AppError(
+      "Invalid batch write data",
+      400,
+      FirebaseErrorCodes.INVALID_PATH
+    );
   }
-  
+
   try {
     const updates = {};
-    
+
     // Prepare updates object
     Object.entries(pathDataMap).forEach(([path, data]) => {
       updates[path] = data;
     });
-    
+
     // Perform batch update
     await database.ref().update(updates);
-    
+
     return { success: true, updatedPaths: Object.keys(pathDataMap) };
   } catch (error) {
-    console.error('Firebase batch write error:', error);
-    
+    console.error("Firebase batch write error:", error);
+
     throw new AppError(
-      `Failed to perform batch write: ${error.message}`, 
-      500, 
+      `Failed to perform batch write: ${error.message}`,
+      500,
       FirebaseErrorCodes.BATCH_OPERATION_FAILED
     );
   }
@@ -177,20 +185,24 @@ export const batchWrite = async (pathDataMap) => {
  * @param {Object} options - Options including maxRetries
  * @returns {Promise<Object>} Result of the transaction
  */
-export const safeTransaction = async (path, updateFn, options = { maxRetries: 3 }) => {
+export const safeTransaction = async (
+  path,
+  updateFn,
+  options = { maxRetries: 3 }
+) => {
   let attempts = 0;
   const maxRetries = options.maxRetries || 3;
-  
+
   while (attempts < maxRetries) {
     try {
       const ref = connectionPool.getRef(path);
       const result = await ref.transaction(updateFn);
-      
+
       if (result.committed) {
-        return { 
-          success: true, 
-          committed: true, 
-          snapshot: result.snapshot.val() 
+        return {
+          success: true,
+          committed: true,
+          snapshot: result.snapshot.val(),
         };
       } else {
         // Transaction aborted but not due to error
@@ -198,20 +210,25 @@ export const safeTransaction = async (path, updateFn, options = { maxRetries: 3 
         continue;
       }
     } catch (error) {
-      console.error(`Firebase transaction error at ${path} (attempt ${attempts + 1}):`, error);
+      console.error(
+        `Firebase transaction error at ${path} (attempt ${attempts + 1}):`,
+        error
+      );
       attempts++;
-      
+
       // If we've exhausted retries, throw error
       if (attempts >= maxRetries) {
         throw new AppError(
-          `Transaction failed after ${maxRetries} attempts: ${error.message}`, 
-          500, 
+          `Transaction failed after ${maxRetries} attempts: ${error.message}`,
+          500,
           FirebaseErrorCodes.TRANSACTION_FAILED
         );
       }
-      
+
       // Wait before retrying (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempts)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, 300 * Math.pow(2, attempts))
+      );
     }
   }
 };
@@ -224,42 +241,42 @@ export const safeTransaction = async (path, updateFn, options = { maxRetries: 3 
  * @returns {Function} Unsubscribe function
  */
 export const safeListener = (path, callback, options = {}) => {
-  const eventType = options.eventType || 'value';
+  const eventType = options.eventType || "value";
   const ref = connectionPool.getRef(path);
-  
+
   // Error handler with reconnection logic
   const errorHandler = (error) => {
     console.error(`Firebase listener error at ${path}:`, error);
-    
+
     // Attempt to reconnect after delay
     setTimeout(() => {
       console.log(`Attempting to reconnect listener at ${path}`);
       ref.off(eventType, dataHandler);
-      ref.off('error', errorHandler);
-      
+      ref.off("error", errorHandler);
+
       ref.on(eventType, dataHandler);
-      ref.on('error', errorHandler);
+      ref.on("error", errorHandler);
     }, 5000); // 5 second delay before reconnection attempt
   };
-  
+
   // Data handler
   const dataHandler = (snapshot) => {
     try {
       callback(null, snapshot);
     } catch (error) {
-      console.error('Error in listener callback:', error);
+      console.error("Error in listener callback:", error);
       callback(error, null);
     }
   };
-  
+
   // Set up listeners
   ref.on(eventType, dataHandler);
-  ref.on('error', errorHandler);
-  
+  ref.on("error", errorHandler);
+
   // Return unsubscribe function
   return () => {
     ref.off(eventType, dataHandler);
-    ref.off('error', errorHandler);
+    ref.off("error", errorHandler);
   };
 };
 
@@ -275,10 +292,10 @@ export const safeRemove = async (path) => {
     return { success: true };
   } catch (error) {
     console.error(`Firebase remove error at ${path}:`, error);
-    
+
     throw new AppError(
-      `Failed to remove data from Firebase: ${error.message}`, 
-      500, 
+      `Failed to remove data from Firebase: ${error.message}`,
+      500,
       FirebaseErrorCodes.WRITE_FAILED
     );
   }
@@ -292,7 +309,7 @@ export const safeRemove = async (path) => {
 export const pathExists = async (path) => {
   try {
     const ref = connectionPool.getRef(path);
-    const snapshot = await ref.once('value');
+    const snapshot = await ref.once("value");
     return snapshot.exists();
   } catch (error) {
     console.error(`Firebase path check error at ${path}:`, error);
@@ -308,5 +325,5 @@ export default {
   safeListener,
   safeRemove,
   pathExists,
-  FirebaseErrorCodes
+  FirebaseErrorCodes,
 };
