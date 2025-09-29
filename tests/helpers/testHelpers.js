@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import User from "../../src/models/userModel.js";
 
 /**
@@ -94,8 +95,7 @@ export const cleanupTestData = async () => {
 
   for (const modelName of models) {
     try {
-      const mongoose = await import("mongoose");
-      const model = mongoose.default.model(modelName);
+      const model = mongoose.model(modelName);
       await model.deleteMany({});
     } catch (error) {
       // Model might not exist, continue
