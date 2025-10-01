@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate } from '../middleware/authMiddleware.js';
+import { protect as authenticate } from '../middleware/auth.js';
 import { checkRole } from '../middleware/roleMiddleware.js';
 import { validateBody } from '../middleware/validationMiddleware.js';
 import { locationSchemas } from '../schemas/validationSchemas.js';

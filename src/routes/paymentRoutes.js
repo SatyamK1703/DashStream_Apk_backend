@@ -1,13 +1,12 @@
 import express from "express";
 import * as paymentController from "../controllers/paymentController.js";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validationMiddleware.js";
 import { paymentSchemas } from "../schemas/validationSchemas.js";
 
 const router = express.Router();
 
-// Webhook route (no authentication required)
-router.post("/webhook", paymentController.handleWebhook);
+// Webhook route is handled at app level with express.raw for signature verification
 
 // Protected routes (require authentication)
 router.use(protect);

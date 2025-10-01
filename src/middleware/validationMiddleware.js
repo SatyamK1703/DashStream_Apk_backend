@@ -11,11 +11,15 @@ import { AppError } from "../utils/appError.js";
  */
 export const validateBody = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.body);
+    const { error, value } = schema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
     if (error) {
       const message = error.details.map((detail) => detail.message).join(", ");
       return next(new AppError(message, 400));
     }
+    req.body = value;
     next();
   };
 };
@@ -27,11 +31,15 @@ export const validateBody = (schema) => {
  */
 export const validateQuery = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.query);
+    const { error, value } = schema.validate(req.query, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
     if (error) {
       const message = error.details.map((detail) => detail.message).join(", ");
       return next(new AppError(message, 400));
     }
+    req.query = value;
     next();
   };
 };
@@ -43,11 +51,15 @@ export const validateQuery = (schema) => {
  */
 export const validateParams = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.params);
+    const { error, value } = schema.validate(req.params, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
     if (error) {
       const message = error.details.map((detail) => detail.message).join(", ");
       return next(new AppError(message, 400));
     }
+    req.params = value;
     next();
   };
 };
@@ -56,10 +68,12 @@ export const validateParams = (schema) => {
  * Validate MongoDB ObjectId
  * @returns {Function} Express middleware function
  */
+import mongoose from "mongoose";
+
 export const validateObjectId = (paramName = "id") => {
   return (req, res, next) => {
     const id = req.params[paramName];
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return next(new AppError(`Invalid ${paramName} format`, 400));
     }
     next();

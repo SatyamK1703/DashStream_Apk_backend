@@ -10,7 +10,7 @@ import {
   getBookingStats
 } from '../controllers/bookingController.js';
 
-import { protect,restrictTo } from '../middleware/authMiddleware.js';
+import { protect,restrictTo } from '../middleware/auth.js';
 
 
 

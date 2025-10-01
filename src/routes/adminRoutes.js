@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, restrictTo } from "../middleware/authMiddleware.js";
+import { protect, restrictTo } from "../middleware/auth.js";
 import {
   getDashboardStats,
   getAllUsers,

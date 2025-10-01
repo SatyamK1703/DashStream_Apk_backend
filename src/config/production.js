@@ -160,7 +160,7 @@ export const productionCorsConfig = {
         (allowedOrigin) =>
           origin.startsWith(allowedOrigin) ||
           origin.includes("expo") ||
-          origin.includes("localhost") // Remove this in production
+          (process.env.NODE_ENV !== "production" && origin.includes("localhost"))
       )
     ) {
       callback(null, true);

@@ -1,7 +1,7 @@
-import mongoose from "mongoose";
 import dotenv from "dotenv";
 dotenv.config({ path: "./.env" });
 import app from "./app.js";
+import { DatabaseConnection, optimizedDbConfig } from "./config/database.js";
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
@@ -10,9 +10,8 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGODB_URI)
+// Connect to MongoDB using optimized settings
+DatabaseConnection.connect(process.env.MONGODB_URI, optimizedDbConfig)
   .then(() => console.log("DB connection successful"))
   .catch((err) => console.log("Error connecting to DB:", err));
 

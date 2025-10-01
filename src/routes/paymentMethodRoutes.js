@@ -1,6 +1,6 @@
 import express from "express";
 import * as paymentMethodController from "../controllers/paymentMethodController.js";
-import { protect, restrictTo } from "../middleware/authMiddleware.js";
+import { protect, restrictTo } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validationMiddleware.js";
 
 const router = express.Router();

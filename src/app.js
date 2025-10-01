@@ -4,8 +4,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
-import session from "express-session";
-import MongoStore from "connect-mongo";
 import dotenv from "dotenv";
 import path from "path";
 
@@ -15,7 +13,6 @@ import {
   productionRateLimiting,
   productionSecurityConfig,
   productionCorsConfig,
-  productionSessionConfig,
   productionOptimizations,
 } from "./config/production.js";
 
@@ -37,14 +34,10 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorMiddleware.js";
-import {
-  rawBodyMiddleware,
-  saveRawBody,
-} from "./middleware/webhookMiddleware.js";
-import {
-  apiResponseMiddleware,
-} from "./utils/apiResponse.js";
+import { saveRawBody } from "./middleware/webhookMiddleware.js";
+import { apiResponseMiddleware } from "./utils/apiResponse.js";
 import passport from "./utils/passport.js";
+import * as paymentController from "./controllers/paymentController.js";
 
 // Load environment variables
 dotenv.config();
@@ -52,6 +45,14 @@ dotenv.config();
 const app = express();
 
 // Production specific configurations
+// Razorpay Webhook: must come before global JSON parsing to preserve raw body
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  saveRawBody,
+  paymentController.handleWebhook
+);
+
 if (process.env.NODE_ENV === "production") {
   validateProductionEnv();
   app.set("trust proxy", 1);
@@ -64,19 +65,7 @@ if (process.env.NODE_ENV === "production") {
   app.use("/api/", productionRateLimiting.general);
   app.use(cors(productionCorsConfig));
   app.options("*", cors(productionCorsConfig));
-  app.use(
-    session({
-      ...productionSessionConfig,
-      store: MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI,
-        ttl: 24 * 60 * 60, // 1 day TTL
-        touchAfter: 24 * 3600, // Update once per day unless data changes
-        crypto: {
-          secret: process.env.SESSION_SECRET || "fallback-session-secret",
-        },
-      }),
-    })
-  );
+  // Sessions removed: using stateless JWT for API
 } else {
   // Development specific configurations
   app.use(morgan("dev"));
@@ -105,36 +94,17 @@ if (process.env.NODE_ENV === "production") {
   };
   app.use(cors(corsOptions));
   app.options("*", cors());
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "super-secret-key",
-      resave: false,
-      saveUninitialized: false,
-      store: MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI,
-        ttl: parseInt(process.env.SESSION_EXPIRY) / 1000 || 14 * 24 * 60 * 60,
-        touchAfter: 24 * 3600,
-      }),
-      cookie: {
-        secure: false,
-        httpOnly: true,
-        maxAge: parseInt(process.env.SESSION_EXPIRY) || 14 * 24 * 60 * 60 * 1000,
-        sameSite: "lax",
-      },
-    })
-  );
+  // Sessions removed in development: using stateless JWT for API
 }
 
 // Common configurations
 app.set("etag", "strong");
 app.use(compression(productionOptimizations.compression));
-app.use(rawBodyMiddleware);
-app.use(saveRawBody);
+// Webhook handled at app-level route before body parsers
 app.use(express.json(productionOptimizations.json));
 app.use(express.urlencoded(productionOptimizations.urlencoded));
 app.use(apiResponseMiddleware);
 app.use(passport.initialize());
-app.use(passport.session());
 
 // API Routes
 app.use("/api/admins", adminRoutes);
