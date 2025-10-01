@@ -1,13 +1,19 @@
 import crypto from "crypto";
 import logger, { createRequestLogger } from "../utils/logger.js";
 
+// Helper function to generate request IDs
+export const generateRequestId = () => crypto.randomUUID();
+
 export const requestIdMiddleware = (req, res, next) => {
   // Honor inbound request id if provided
   const incomingId = req.headers["x-request-id"] || req.headers["x-requestid"];
   req.id =
     typeof incomingId === "string" && incomingId.trim()
       ? incomingId.trim()
-      : crypto.randomUUID();
+      : generateRequestId();
+
+  // Also set as requestId for compatibility
+  req.requestId = req.id;
 
   // Set response header
   res.setHeader("X-Request-ID", req.id);

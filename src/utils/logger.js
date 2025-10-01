@@ -155,10 +155,7 @@ if (isProd) {
   logger.info("Logger initialized in development mode");
 }
 
-// Create child logger with request context
-logger.child = (meta = {}) => {
-  return logger.child(meta);
-};
+// Note: logger.child is already provided by winston, no need to override
 
 // Export convenience methods
 export const createRequestLogger = (requestId, additionalMeta = {}) => {
