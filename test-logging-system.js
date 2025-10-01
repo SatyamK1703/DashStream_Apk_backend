@@ -77,61 +77,63 @@ const testLogger = createRequestLogger(testRequestId, {
 
 try {
   console.log("   Testing Database Operation Logging...");
-  logDatabaseOperation(
-    testLogger,
-    "findOne",
-    "User",
-    { userId: "test" },
-    { duration: 45, success: true }
-  );
+  logDatabaseOperation("findOne", "User", { userId: "test" }, testLogger);
 
   console.log("   Testing Auth Event Logging...");
-  logAuthEvent(
-    testLogger,
-    "OTP_SENT",
-    { phoneNumber: "+1***7890" },
-    { success: true }
-  );
+  logAuthEvent("OTP_SENT", "user123", { phoneNumber: "+1***7890" }, testLogger);
 
   console.log("   Testing Payment Event Logging...");
-  logPaymentEvent(testLogger, "PAYMENT_INITIATED", {
-    orderId: "order_123",
-    amount: 100,
-  });
+  logPaymentEvent(
+    "PAYMENT_INITIATED",
+    "pay_123",
+    100,
+    {
+      orderId: "order_123",
+    },
+    testLogger
+  );
 
   console.log("   Testing External API Call Logging...");
-  logExternalApiCall(testLogger, "twilio", "POST", "/Messages", {
-    duration: 250,
-    success: true,
-  });
+  logExternalApiCall("twilio", "/Messages", "POST", 250, 200, testLogger);
 
   console.log("   Testing Business Event Logging...");
-  logBusinessEvent(testLogger, "SERVICE_BOOKED", {
-    serviceId: "svc_123",
-    customerId: "cust_456",
-  });
+  logBusinessEvent(
+    "SERVICE_BOOKED",
+    "booking",
+    "book_123",
+    {
+      serviceId: "svc_123",
+      customerId: "cust_456",
+    },
+    testLogger
+  );
 
   console.log("   Testing Performance Logging...");
-  logPerformance(testLogger, "REQUEST_PROCESSING", {
-    duration: 1200,
-    memory: 45.2,
-  });
+  logPerformance(
+    "REQUEST_PROCESSING",
+    1200,
+    {
+      memory: 45.2,
+    },
+    testLogger
+  );
 
   console.log("   Testing Security Event Logging...");
-  logSecurityEvent(testLogger, "RATE_LIMIT_EXCEEDED", {
-    ip: "127.0.0.1",
-    limit: 100,
-  });
+  logSecurityEvent(
+    "RATE_LIMIT_EXCEEDED",
+    "high",
+    {
+      ip: "127.0.0.1",
+      limit: 100,
+    },
+    testLogger
+  );
 
   console.log("   Testing Validation Error Logging...");
-  logValidationError(testLogger, { field: "email", message: "Invalid format" });
+  logValidationError("email", "invalid-email", "Invalid format", testLogger);
 
   console.log("   Testing Rate Limit Logging...");
-  logRateLimit(testLogger, "API_REQUEST", {
-    limit: 100,
-    remaining: 95,
-    resetTime: Date.now() + 3600000,
-  });
+  logRateLimit("API_REQUEST", 100, 95, testLogger);
 
   console.log("✅ All logging utilities tested successfully");
 } catch (error) {
@@ -149,14 +151,8 @@ try {
 // Test 6: Error Handling without Request Logger
 console.log("\n6. Testing Error Handling (No Request Logger)");
 try {
-  logDatabaseOperation(
-    null,
-    "findOne",
-    "User",
-    { userId: "test" },
-    { duration: 50, success: true }
-  );
-  logAuthEvent(null, "LOGIN_ATTEMPT", { userId: "test" }, { success: false });
+  logDatabaseOperation("findOne", "User", { userId: "test" }, null);
+  logAuthEvent("LOGIN_ATTEMPT", "user123", { success: false }, null);
   console.log("✅ Error handling without request logger works correctly");
 } catch (error) {
   console.log("❌ Error handling test failed:", error.message);
@@ -169,8 +165,7 @@ try {
   process.env.NODE_ENV = "production";
   process.env.VERCEL = "1";
 
-  // Re-import logger with serverless environment
-  delete require.cache[require.resolve("./src/utils/logger.js")];
+  // Re-import logger with serverless environment - use dynamic import with timestamp
   const { default: serverlessLogger } = await import(
     `./src/utils/logger.js?t=${Date.now()}`
   );
@@ -179,6 +174,7 @@ try {
 
   // Clean up environment
   delete process.env.VERCEL;
+  process.env.NODE_ENV = "development";
 } catch (error) {
   console.log("❌ Serverless environment test failed:", error.message);
 }
