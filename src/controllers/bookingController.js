@@ -1,6 +1,7 @@
 import Booking from "../models/bookingModel.js";
 import User from "../models/userModel.js";
 import Service from "../models/serviceModel.js";
+import PaymentMethod from "../models/paymentMethodModel.js";
 import Notification from "../models/notificationModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
 
@@ -55,6 +56,43 @@ export const createBooking = asyncHandler(async (req, res, next) => {
     }
   }
 
+  // Validate payment method if provided
+  if (req.body.paymentMethod) {
+    const paymentMethod = await PaymentMethod.findOne({ 
+      type: req.body.paymentMethod, 
+      isActive: true 
+    });
+    
+    if (!paymentMethod) {
+      return next(new AppError("Invalid or unavailable payment method", 400));
+    }
+    
+    // Validate COD constraints
+    if (req.body.paymentMethod === 'cod') {
+      const codSettings = paymentMethod.config?.codSettings || {};
+      const totalAmount = req.body.totalAmount || totalPrice;
+      
+      if (codSettings.minAmount && totalAmount < codSettings.minAmount) {
+        return next(new AppError(`Minimum amount for COD is ₹${codSettings.minAmount}`, 400));
+      }
+      
+      if (codSettings.maxAmount && totalAmount > codSettings.maxAmount) {
+        return next(new AppError(`Maximum amount for COD is ₹${codSettings.maxAmount}`, 400));
+      }
+      
+      // Check if COD is allowed for these services
+      if (codSettings.allowedServiceTypes && codSettings.allowedServiceTypes.length > 0) {
+        const serviceTypes = services.map(s => s.serviceId.toString());
+        const allowedTypes = codSettings.allowedServiceTypes.map(t => t.toString());
+        const hasAllowedService = serviceTypes.some(type => allowedTypes.includes(type));
+        
+        if (!hasAllowedService) {
+          return next(new AppError("COD is not available for selected services", 400));
+        }
+      }
+    }
+  }
+
   // Set price and total amount from services if not provided
   if (!req.body.price) {
     req.body.price = totalPrice;
@@ -62,6 +100,11 @@ export const createBooking = asyncHandler(async (req, res, next) => {
 
   if (!req.body.totalAmount) {
     req.body.totalAmount = req.body.price;
+  }
+
+  // Set payment status based on payment method
+  if (req.body.paymentMethod === 'cod') {
+    req.body.paymentStatus = 'pending_cod';
   }
 
   // Prepare booking data with services array

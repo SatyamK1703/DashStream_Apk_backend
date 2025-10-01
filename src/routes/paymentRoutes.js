@@ -26,6 +26,17 @@ router.post(
   paymentController.createPaymentLinkOrder
 );
 
+// Create COD payment record
+router.post(
+  "/create-cod",
+  validateBody(paymentSchemas.createOrder),
+  paymentController.createCODPaymentOrder
+);
+
+// COD collection routes
+router.post("/cod/:bookingId/collect", paymentController.collectCODPayment);
+router.post("/cod/:bookingId/fail", paymentController.failCODPayment);
+
 // Verify payment
 router.post(
   "/verify",

@@ -414,3 +414,152 @@ export const initiateRefund = asyncHandler(async (req, res) => {
   const refund = await paymentService.initiateRefund(paymentId, amount, notes);
   res.status(200).json({ status: "success", refund });
 });
+
+// COD-specific functions
+
+// Create COD payment record for tracking
+export const createCODPayment = async (bookingId, userId, amount, notes = {}) => {
+  try {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new AppError("Booking not found", 404);
+
+    // Create COD payment record
+    const payment = await Payment.create({
+      bookingId,
+      userId,
+      amount,
+      currency: "INR",
+      status: "cod_pending",
+      paymentMethod: "cod",
+      notes: {
+        ...notes,
+        codCreatedAt: new Date(),
+        bookingId: bookingId.toString(),
+      }
+    });
+
+    return {
+      paymentId: payment._id,
+      codStatus: 'pending',
+      amount: amount,
+      message: 'COD payment record created'
+    };
+  } catch (error) {
+    console.error("Error creating COD payment:", error);
+    throw new AppError(error.message || "Failed to create COD payment", 500);
+  }
+};
+
+// Mark COD as collected by professional
+export const collectCODPayment = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const { amount, notes } = req.body;
+  
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new AppError("Booking not found", 404);
+  }
+  
+  // Verify that the current user is the assigned professional
+  if (!booking.professional || booking.professional.toString() !== req.user.id) {
+    throw new AppError("You are not authorized to collect payment for this booking", 403);
+  }
+  
+  // Update booking COD status
+  booking.codStatus = 'collected';
+  booking.codCollectedAt = new Date();
+  booking.codCollectedBy = req.user.id;
+  booking.paymentStatus = 'paid';
+  
+  if (notes) {
+    booking.completionNotes = notes;
+  }
+  
+  // Add tracking update
+  booking.trackingUpdates.push({
+    status: booking.status,
+    message: `Payment of ₹${amount} collected via COD`,
+    updatedBy: req.user.id,
+    timestamp: new Date(),
+  });
+  
+  await booking.save();
+  
+  // Update payment record if exists
+  const payment = await Payment.findOne({ bookingId });
+  if (payment) {
+    payment.status = 'cod_collected';
+    payment.capturedAt = new Date();
+    payment.paymentDetails = {
+      collectedBy: req.user.id,
+      collectedAt: new Date(),
+      collectionNotes: notes
+    };
+    await payment.save();
+  }
+  
+  res.status(200).json({
+    status: "success",
+    data: {
+      booking,
+      message: "COD payment collected successfully"
+    }
+  });
+});
+
+// Mark COD collection as failed
+export const failCODPayment = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const { reason } = req.body;
+  
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new AppError("Booking not found", 404);
+  }
+  
+  // Verify that the current user is the assigned professional
+  if (!booking.professional || booking.professional.toString() !== req.user.id) {
+    throw new AppError("You are not authorized to update payment for this booking", 403);
+  }
+  
+  // Update booking COD status
+  booking.codStatus = 'failed';
+  booking.paymentStatus = 'failed';
+  
+  // Add tracking update
+  booking.trackingUpdates.push({
+    status: booking.status,
+    message: `COD payment failed: ${reason || 'No reason provided'}`,
+    updatedBy: req.user.id,
+    timestamp: new Date(),
+  });
+  
+  await booking.save();
+  
+  // Update payment record if exists
+  const payment = await Payment.findOne({ bookingId });
+  if (payment) {
+    payment.status = 'failed';
+    payment.errorDescription = reason || 'COD collection failed';
+    await payment.save();
+  }
+  
+  res.status(200).json({
+    status: "success",
+    data: {
+      booking,
+      message: "COD payment marked as failed"
+    }
+  });
+});
+
+// Create COD payment record (route handler)
+export const createCODPaymentOrder = asyncHandler(async (req, res) => {
+  const { bookingId, amount, notes } = req.body || {};
+  if (!bookingId || !amount) {
+    throw new AppError("Missing bookingId or amount", 400);
+  }
+
+  const result = await createCODPayment(bookingId, req.user.id, amount, notes);
+  res.status(201).json({ status: "success", data: result });
+});
