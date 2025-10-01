@@ -56,39 +56,30 @@ export const createBooking = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Validate payment method if provided
+  // Validate payment method if provided (make it optional for backward compatibility)
   if (req.body.paymentMethod) {
-    const paymentMethod = await PaymentMethod.findOne({ 
-      type: req.body.paymentMethod, 
-      isActive: true 
-    });
+    // For now, allow basic payment methods without database validation
+    // This ensures backward compatibility while the PaymentMethod collection is being set up
+    const allowedMethods = ['razorpay', 'cod', 'upi', 'card', 'wallet'];
     
-    if (!paymentMethod) {
-      return next(new AppError("Invalid or unavailable payment method", 400));
+    if (!allowedMethods.includes(req.body.paymentMethod)) {
+      return next(new AppError("Invalid payment method", 400));
     }
     
-    // Validate COD constraints
+    // Basic COD validation without database dependency
     if (req.body.paymentMethod === 'cod') {
-      const codSettings = paymentMethod.config?.codSettings || {};
       const totalAmount = req.body.totalAmount || totalPrice;
       
-      if (codSettings.minAmount && totalAmount < codSettings.minAmount) {
-        return next(new AppError(`Minimum amount for COD is ₹${codSettings.minAmount}`, 400));
+      // Basic COD constraints (can be configured later via PaymentMethod model)
+      const minAmount = 50;
+      const maxAmount = 5000;
+      
+      if (totalAmount < minAmount) {
+        return next(new AppError(`Minimum amount for COD is ₹${minAmount}`, 400));
       }
       
-      if (codSettings.maxAmount && totalAmount > codSettings.maxAmount) {
-        return next(new AppError(`Maximum amount for COD is ₹${codSettings.maxAmount}`, 400));
-      }
-      
-      // Check if COD is allowed for these services
-      if (codSettings.allowedServiceTypes && codSettings.allowedServiceTypes.length > 0) {
-        const serviceTypes = services.map(s => s.serviceId.toString());
-        const allowedTypes = codSettings.allowedServiceTypes.map(t => t.toString());
-        const hasAllowedService = serviceTypes.some(type => allowedTypes.includes(type));
-        
-        if (!hasAllowedService) {
-          return next(new AppError("COD is not available for selected services", 400));
-        }
+      if (totalAmount > maxAmount) {
+        return next(new AppError(`Maximum amount for COD is ₹${maxAmount}`, 400));
       }
     }
   }
