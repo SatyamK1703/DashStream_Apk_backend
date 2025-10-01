@@ -78,18 +78,22 @@ export const createPaymentLink = async (
   notes = {}
 ) => {
   try {
-    const booking = await Booking.findById(bookingId);
+    const booking = await Booking.findById(bookingId).populate(
+      "customer",
+      "name email phone"
+    );
     if (!booking) throw new AppError("Booking not found", 404);
 
+    const customer = booking.customer || {};
     const paymentLinkOptions = {
       amount: Math.round(Number(amount) * 100), // in paise
       currency: "INR",
       accept_partial: false,
       description: `Payment for booking ${bookingId}`,
       customer: {
-        name: booking.customerName || "Customer",
-        email: booking.customerEmail || "noemail@example.com",
-        contact: booking.customerPhone || "9999999999",
+        name: customer.name || "Customer",
+        email: customer.email || "noemail@example.com",
+        contact: customer.phone || "9999999999",
       },
       notify: {
         sms: true,
