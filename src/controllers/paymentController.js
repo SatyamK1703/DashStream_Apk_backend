@@ -70,6 +70,68 @@ export const createOrder = async (bookingId, userId, amount, notes = {}) => {
   }
 };
 
+// Create a new Razorpay payment link for web-based checkout
+export const createPaymentLink = async (
+  bookingId,
+  userId,
+  amount,
+  notes = {}
+) => {
+  try {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) throw new AppError("Booking not found", 404);
+
+    const paymentLinkOptions = {
+      amount: Math.round(Number(amount) * 100), // in paise
+      currency: "INR",
+      accept_partial: false,
+      description: `Payment for booking ${bookingId}`,
+      customer: {
+        name: booking.customerName || "Customer",
+        email: booking.customerEmail || "noemail@example.com",
+        contact: booking.customerPhone || "9999999999",
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      // Optionally set a callback_url for post-payment redirect
+      // callback_url: "https://your-frontend-url.com/payment-callback",
+      // callback_method: "get",
+      notes: {
+        bookingId: bookingId.toString(),
+        userId: userId.toString(),
+        ...notes,
+      },
+    };
+
+    const paymentLink = await razorpayInstance.paymentLink.create(
+      paymentLinkOptions
+    );
+
+    // Optionally, store the payment link ID in your Payment model for tracking
+    const payment = await Payment.create({
+      bookingId,
+      userId,
+      amount,
+      currency: "INR",
+      status: "created",
+      notes,
+      razorpayPaymentLinkId: paymentLink.id,
+    });
+
+    return {
+      paymentId: payment._id,
+      payment_link: paymentLink.short_url, // or paymentLink.payment_url
+      paymentLinkId: paymentLink.id,
+      key: getRazorpayKeyId(),
+    };
+  } catch (error) {
+    console.error("Error creating Razorpay payment link:", error);
+    throw new AppError(error.message || "Failed to create payment link", 500);
+  }
+};
+
 // Verify payment signature (timing-safe)
 export const verifyPaymentSignature = async (orderId, paymentId, signature) => {
   try {
@@ -260,6 +322,16 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
   }
 
   const result = await createOrder(bookingId, req.user.id, amount, notes);
+  res.status(201).json({ status: "success", data: result });
+});
+
+export const createPaymentLinkOrder = asyncHandler(async (req, res) => {
+  const { bookingId, amount, notes } = req.body || {};
+  if (!bookingId || !amount) {
+    throw new AppError("Missing bookingId or amount", 400);
+  }
+
+  const result = await createPaymentLink(bookingId, req.user.id, amount, notes);
   res.status(201).json({ status: "success", data: result });
 });
 
