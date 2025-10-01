@@ -1,8 +1,9 @@
-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import logger from "./utils/logger.js";
+import requestIdMiddleware from "./middleware/requestId.js";
 import compression from "compression";
 import dotenv from "dotenv";
 import path from "path";
@@ -43,6 +44,24 @@ import * as paymentController from "./controllers/paymentController.js";
 dotenv.config();
 
 const app = express();
+
+// Assign request IDs early
+app.use(requestIdMiddleware);
+
+// Morgan HTTP logging to Winston with request id token
+morgan.token("id", (req) => req.id);
+const morganFormat =
+  process.env.NODE_ENV === "production"
+    ? ":remote-addr - :method :url :status :res[content-length] - :response-time ms req-id=:id"
+    : "dev";
+app.use(
+  morgan(morganFormat, {
+    stream: {
+      write: (message) =>
+        logger.http ? logger.http(message.trim()) : logger.info(message.trim()),
+    },
+  })
+);
 
 // Production specific configurations
 // Razorpay Webhook: must come before global JSON parsing to preserve raw body

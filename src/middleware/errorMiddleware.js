@@ -3,8 +3,21 @@
  * Enhanced for React Native app
  */
 
+import logger from "../utils/logger.js";
+// Import custom AppError class
+import { AppError } from "../utils/appError.js";
+
 // Error handler for development environment
-const sendErrorDev = (err, res) => {
+const sendErrorDev = (err, res, logger) => {
+  // Log error with full details in development
+  logger.error("Error occurred", {
+    error: err.message,
+    stack: err.stack,
+    statusCode: err.statusCode,
+    errorCode: err.errorCode,
+    isOperational: err.isOperational,
+  });
+
   res.status(err.statusCode).json({
     status: err.status,
     error: err,
@@ -16,9 +29,17 @@ const sendErrorDev = (err, res) => {
 };
 
 // Error handler for production environment
-const sendErrorProd = (err, res) => {
+const sendErrorProd = (err, res, logger) => {
   // Operational, trusted error: send message to client
   if (err.isOperational) {
+    // Log operational errors as warnings
+    logger.warn("Operational error", {
+      error: err.message,
+      statusCode: err.statusCode,
+      errorCode: err.errorCode,
+      userFriendlyMessage: err.userFriendlyMessage,
+    });
+
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
@@ -27,7 +48,14 @@ const sendErrorProd = (err, res) => {
     });
   } else {
     // Programming or other unknown error: don't leak error details
-    console.error("ERROR 💥", err);
+    logger.error("Unexpected error", {
+      error: err.message,
+      stack: err.stack,
+      statusCode: err.statusCode,
+      name: err.name,
+      code: err.code,
+    });
+
     res.status(500).json({
       status: "error",
       message: "Something went wrong",
@@ -36,9 +64,6 @@ const sendErrorProd = (err, res) => {
     });
   }
 };
-
-// Import custom AppError class
-import { AppError } from "../utils/appError.js";
 
 // Handle MongoDB duplicate key errors
 const handleDuplicateFieldsDB = (err) => {
@@ -71,8 +96,11 @@ const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
 
+  // Use request logger if available, fallback to global logger
+  const requestLogger = req.logger || logger;
+
   if (process.env.NODE_ENV === "development") {
-    sendErrorDev(err, res);
+    sendErrorDev(err, res, requestLogger);
   } else if (process.env.NODE_ENV === "production") {
     let error = Object.create(err); // preserve prototype chain
     error.message = err.message;
@@ -88,7 +116,7 @@ const errorHandler = (err, req, res, next) => {
     if (error.name === "JsonWebTokenError") error = handleJWTError();
     if (error.name === "TokenExpiredError") error = handleJWTExpiredError();
 
-    sendErrorProd(error, res);
+    sendErrorProd(error, res, requestLogger);
   }
 };
 
