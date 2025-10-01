@@ -18,8 +18,9 @@ const paymentSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: "INR" },
-    razorpayOrderId: { type: String, index: true },
-    razorpayPaymentId: { type: String, index: true },
+    razorpayOrderId: { type: String },
+    razorpayPaymentId: { type: String },
+    razorpayPaymentLinkId: { type: String },
     razorpaySignature: { type: String },
     status: { type: String, default: "created" },
     paymentMethod: { type: String },
@@ -41,6 +42,13 @@ paymentSchema.virtual("refundPercentage").get(function () {
   if (!this.refundAmount || !this.amount) return 0;
   return (this.refundAmount / this.amount) * 100;
 });
+
+// Add indexes explicitly to have full control over index options
+// Using sparse indexes to allow multiple null values (important for payment links)
+paymentSchema.index({ bookingId: 1, status: 1 });
+paymentSchema.index({ razorpayOrderId: 1 }, { sparse: true, unique: true });
+paymentSchema.index({ razorpayPaymentId: 1 }, { sparse: true });
+paymentSchema.index({ razorpayPaymentLinkId: 1 }, { sparse: true });
 
 export default mongoose.models.Payment ||
   mongoose.model("Payment", paymentSchema);

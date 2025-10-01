@@ -113,16 +113,51 @@ export const createPaymentLink = async (
       paymentLinkOptions
     );
 
+    // Check if payment already exists for this booking
+    let existingPayment = await Payment.findOne({ 
+      bookingId, 
+      status: { $in: ['created', 'pending', 'authorized'] } 
+    });
+
+    if (existingPayment && existingPayment.razorpayPaymentLinkId) {
+      // Return existing payment link if it's still valid
+      try {
+        const existingLink = await razorpayInstance.paymentLink.fetch(existingPayment.razorpayPaymentLinkId);
+        if (existingLink && existingLink.status === 'created') {
+          return {
+            paymentId: existingPayment._id,
+            payment_link: existingLink.short_url,
+            paymentLinkId: existingLink.id,
+            key: getRazorpayKeyId(),
+          };
+        }
+      } catch (linkError) {
+        console.log('Existing payment link not valid, creating new one');
+      }
+    }
+
     // Optionally, store the payment link ID in your Payment model for tracking
-    const payment = await Payment.create({
+    const payment = existingPayment || await Payment.create({
       bookingId,
       userId,
       amount,
       currency: "INR",
       status: "created",
       notes,
-      razorpayPaymentLinkId: paymentLink.id,
     });
+
+    // Update payment record with payment link details
+    if (!existingPayment) {
+      payment.razorpayPaymentLinkId = paymentLink.id;
+      await payment.save();
+    } else {
+      await Payment.findByIdAndUpdate(existingPayment._id, {
+        razorpayPaymentLinkId: paymentLink.id,
+        status: 'created',
+        amount: amount, // Update amount in case it changed
+        notes: notes
+      });
+    }
 
     return {
       paymentId: payment._id,
@@ -132,6 +167,13 @@ export const createPaymentLink = async (
     };
   } catch (error) {
     console.error("Error creating Razorpay payment link:", error);
+    
+    // Handle MongoDB duplicate key errors specifically
+    if (error.code === 11000) {
+      const message = "A payment for this booking already exists. Please check your existing orders.";
+      throw new AppError(message, 409, "DUPLICATE_PAYMENT");
+    }
+    
     throw new AppError(error.message || "Failed to create payment link", 500);
   }
 };
