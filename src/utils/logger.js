@@ -14,16 +14,40 @@ const isProd = process.env.NODE_ENV === "production";
 const canCreateLogDir = () => {
   try {
     const logDir = path.join(process.cwd(), "logs");
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
+
+    // Check if directory already exists
+    if (fs.existsSync(logDir)) {
+      return true;
     }
+
+    // Try to create directory - this will fail in serverless environments
+    fs.mkdirSync(logDir, { recursive: true });
     return true;
   } catch (error) {
+    // Failed to create directory - likely in serverless environment
+    console.warn(
+      `Logger: Cannot create logs directory - using console-only logging. Error: ${error.message}`
+    );
     return false;
   }
 };
 
-const fileLogsEnabled = isProd && canCreateLogDir();
+// Determine if file logging should be enabled
+let fileLogsEnabled = false;
+if (isProd && !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  try {
+    fileLogsEnabled = canCreateLogDir();
+  } catch (error) {
+    console.warn(
+      `Logger: File logging disabled due to error: ${error.message}`
+    );
+    fileLogsEnabled = false;
+  }
+} else if (isProd) {
+  console.info(
+    "Logger: Serverless environment detected - file logging disabled"
+  );
+}
 
 // Custom format that includes request ID in all log entries
 const customFormat = printf(
