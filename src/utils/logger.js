@@ -1,5 +1,6 @@
 import winston from "winston";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 const { combine, timestamp, json, colorize, printf, splat, errors, metadata } =
@@ -8,6 +9,21 @@ const { combine, timestamp, json, colorize, printf, splat, errors, metadata } =
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isProd = process.env.NODE_ENV === "production";
+
+// Check if we can create log directories (for serverless environments)
+const canCreateLogDir = () => {
+  try {
+    const logDir = path.join(process.cwd(), "logs");
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+const fileLogsEnabled = isProd && canCreateLogDir();
 
 // Custom format that includes request ID in all log entries
 const customFormat = printf(
@@ -55,8 +71,8 @@ const transports = [
   }),
 ];
 
-// Add file transports for production
-if (isProd) {
+// Add file transports for production (only if file system is writable)
+if (fileLogsEnabled) {
   // Error log file
   transports.push(
     new winston.transports.File({
@@ -101,6 +117,19 @@ const logger = winston.createLogger({
   handleExceptions: true,
   handleRejections: true,
 });
+
+// Log initialization info
+if (isProd) {
+  if (fileLogsEnabled) {
+    logger.info("Logger initialized with file transports enabled");
+  } else {
+    logger.warn(
+      "Logger initialized with console-only logging (file system not writable)"
+    );
+  }
+} else {
+  logger.info("Logger initialized in development mode");
+}
 
 // Create child logger with request context
 logger.child = (meta = {}) => {
