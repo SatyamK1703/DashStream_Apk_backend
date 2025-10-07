@@ -97,28 +97,16 @@ export const getAllOffers = asyncHandler(async (req, res, next) => {
 // GET /api/offers/active - Get only active and valid offers
 export const getActiveOffers = asyncHandler(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
-  const vehicleType = req.query.vehicleType;
-  const category = req.query.category;
   
   // Build filter object
-  let filters = {};
+
   
-  if (vehicleType) {
-    filters.$or = [
-      { vehicleType: vehicleType },
-      { vehicleType: 'Both' }
-    ];
-  }
+ 
   
-  if (category) {
-    filters.applicableCategories = category;
-  }
+
   
   const offers = await Offer.getActiveOffers(filters)
     .limit(limit)
-    .populate('applicableServices', 'title price category')
-    .populate('createdBy', 'name');
-  
   res.status(200).json({
     status: 'success',
     results: offers.length,

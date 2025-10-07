@@ -165,7 +165,7 @@ export const getBooking = asyncHandler(async (req, res, next) => {
       "name phone rating profileImage experience specialization"
     )
     .populate(
-      "service",
+      "services.serviceId",
       "title price duration image description category vehicleType"
     )
     .populate("trackingUpdates.updatedBy", "name role");
@@ -237,7 +237,7 @@ export const getMyBookings = asyncHandler(async (req, res, next) => {
   const bookings = await Booking.find(filter)
     .populate("customer", "name phone profileImage")
     .populate("professional", "name phone rating profileImage")
-    .populate("service", "title price duration image")
+    .populate("services.serviceId", "title price duration image")
     .sort({ scheduledDate: -1, createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -344,7 +344,7 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
       "name phone rating profileImage experience specialization"
     )
     .populate(
-      "service",
+      "services.serviceId",
       "title price duration image description category vehicleType"
     )
     .populate("trackingUpdates.updatedBy", "name role");
@@ -492,7 +492,7 @@ export const rateBooking = asyncHandler(async (req, res, next) => {
       "name phone rating profileImage experience specialization"
     )
     .populate(
-      "service",
+      "services.serviceId",
       "title price duration image description category vehicleType"
     )
     .populate("trackingUpdates.updatedBy", "name role");
@@ -569,7 +569,7 @@ export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
       "name phone rating profileImage experience specialization"
     )
     .populate(
-      "service",
+      "services.serviceId",
       "title price duration image description category vehicleType"
     )
     .populate("trackingUpdates.updatedBy", "name role");
