@@ -99,12 +99,6 @@ export const getActiveOffers = asyncHandler(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
   
   // Build filter object
-
-  
- 
-  
-
-  
   const offers = await Offer.getActiveOffers(filters)
     .limit(limit)
   res.status(200).json({
