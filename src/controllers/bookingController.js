@@ -137,9 +137,11 @@ export const createBooking = asyncHandler(async (req, res, next) => {
     });
   }
 
+  const populatedBookingObject = populatedBooking.toObject();
+
   res.status(201).json({
     status: "success",
-    data: populatedBooking,
+    data: populatedBookingObject,
   });
 });
 
