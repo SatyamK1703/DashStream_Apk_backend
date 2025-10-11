@@ -34,7 +34,7 @@ const trackingUpdateSchema = new Schema(
 const bookingSchema = new Schema(
   {
     customer: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    professional: { type: Schema.Types.ObjectId, ref: "Professional" },
+    professional: { type: Schema.Types.ObjectId, ref: "User" },
     services: { type: [serviceItemSchema], default: [] },
     vehicle: {
       make: String,
@@ -58,6 +58,11 @@ const bookingSchema = new Schema(
     totalAmount: { type: Number, default: 0 },
     estimatedDuration: { type: Number, default: 0 },
     notes: { type: String },
+    rating: {
+      rating: { type: Number, min: 1, max: 5 },
+      review: { type: String },
+      createdAt: { type: Date, default: Date.now },
+    },
     
     // COD specific fields
     codAmount: { type: Number, default: 0 },

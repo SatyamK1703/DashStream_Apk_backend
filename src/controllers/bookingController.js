@@ -150,9 +150,7 @@ export const getAllBookings = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     results: bookings.length,
-    data: {
-      bookings,
-    },
+    data: bookings,
   });
 });
 
@@ -188,7 +186,7 @@ export const getBooking = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    booking,
+    data: booking,
   });
 });
 
@@ -413,7 +411,7 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
 
 //POST /api/bookings/:id/rate
 export const rateBooking = asyncHandler(async (req, res, next) => {
-  const { score, review } = req.body;
+  const { rating: score, review } = req.body;
 
   if (!score || score < 1 || score > 5) {
     return next(
@@ -439,9 +437,14 @@ export const rateBooking = asyncHandler(async (req, res, next) => {
     return next(new AppError("You can only rate completed bookings", 400));
   }
 
+  // Check if already reviewed
+  if (booking.rating) {
+    return next(new AppError("You have already reviewed this booking", 400));
+  }
+
   // Add rating
   booking.rating = {
-    score,
+    rating: score,
     review: review || "",
     createdAt: Date.now(),
   };
@@ -457,13 +460,13 @@ export const rateBooking = asyncHandler(async (req, res, next) => {
       const completedBookings = await Booking.find({
         professional: booking.professional,
         status: "completed",
-        "rating.score": { $exists: true },
+        "rating.rating": { $exists: true },
       });
 
       // Calculate average rating
       const totalRatings = completedBookings.length;
       const ratingSum = completedBookings.reduce(
-        (sum, booking) => sum + booking.rating.score,
+        (sum, booking) => sum + booking.rating.rating,
         0
       );
       const averageRating =
@@ -591,74 +594,7 @@ export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
   });
 });
 
-//POST /api/bookings/:id/review
-export const addBookingReview = asyncHandler(async (req, res, next) => {
-  const { rating, review } = req.body;
 
-  if (!rating || rating < 1 || rating > 5) {
-    return next(
-      new AppError("Please provide a valid rating between 1 and 5", 400)
-    );
-  }
-
-  const booking = await Booking.findById(req.params.id);
-
-  if (!booking) {
-    return next(new AppError("No booking found with that ID", 404));
-  }
-
-  // Only customers who booked the service can add reviews
-  if (booking.customer.toString() !== req.user.id) {
-    return next(new AppError("You can only review your own bookings", 403));
-  }
-
-  // Check if booking is completed
-  if (booking.status !== "completed") {
-    return next(new AppError("You can only review completed bookings", 400));
-  }
-
-  // Check if already reviewed
-  if (booking.rating) {
-    return next(new AppError("You have already reviewed this booking", 400));
-  }
-
-  // Add rating and review
-  booking.rating = rating;
-  booking.review = review;
-  await booking.save();
-
-  // Update professional's average rating
-  const professional = await User.findById(booking.professional);
-  const professionalBookings = await Booking.find({
-    professional: booking.professional,
-    rating: { $exists: true },
-  });
-
-  const totalRatings = professionalBookings.reduce(
-    (sum, booking) => sum + booking.rating,
-    0
-  );
-  const averageRating = totalRatings / professionalBookings.length;
-
-  professional.rating = averageRating;
-  await professional.save({ validateBeforeSave: false });
-
-  // Create notification for professional
-  await Notification.create({
-    recipient: booking.professional,
-    title: "New Review",
-    message: `You received a ${rating}-star review for your service`,
-    type: "new_review",
-    data: { bookingId: booking._id },
-  });
-
-  res.status(200).json({
-    status: "success",
-    data: {
-      booking,
-    },
-  });
-});
 
 //GET /api/bookings/stats
 export const getBookingStats = asyncHandler(async (req, res, next) => {
