@@ -139,7 +139,7 @@ export const createBooking = asyncHandler(async (req, res, next) => {
 
   res.status(201).json({
     status: "success",
-    booking: populatedBooking,
+    data: populatedBooking,
   });
 });
 
