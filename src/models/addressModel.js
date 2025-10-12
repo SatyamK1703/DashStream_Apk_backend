@@ -11,17 +11,17 @@ const addressSchema = new mongoose.Schema({
     enum: ['home', 'work', 'other'],
     default: 'home',
   },
-  title: {
+  name: {
     type: String,
     required: [true, 'Address title is required'],
     trim: true,
   },
-  addressLine1: {
+  address: {
     type: String,
     required: [true, 'Address line 1 is required'],
     trim: true,
   },
-  addressLine2: {
+  landmark: {
     type: String,
     trim: true,
   },
@@ -30,11 +30,7 @@ const addressSchema = new mongoose.Schema({
     required: [true, 'City is required'],
     trim: true,
   },
-  state: {
-    type: String,
-    trim: true,
-  },
-  postalCode: {
+  pincode: {
     type: String,
     required: [true, 'Postal code is required'],
     trim: true,
