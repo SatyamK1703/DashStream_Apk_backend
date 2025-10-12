@@ -8,7 +8,8 @@ export const purchaseMembership = async (req, res) => {
     const order = await membershipService.createMembershipOrder(planId, userId, amount);
     res.status(201).json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Error purchasing membership', error });
+    console.error('Error in purchaseMembership controller:', error);
+    res.status(500).json({ message: 'Error purchasing membership', error: error.message });
   }
 };
 
