@@ -533,9 +533,9 @@ export const getAllBookings = async (req, res, next) => {
       {
         bookings: bookings.map((booking) => ({
           id: booking._id,
-          customerName: booking.customer.name,
+          customerName: booking.customer?.name || "Unknown Customer",
           professionalName: booking.professional?.name || "Unassigned",
-          serviceName: booking.service.name,
+          serviceName: booking.service?.name || "Unknown Service",
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
