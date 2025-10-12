@@ -6,7 +6,12 @@ export const purchaseMembership = async (req, res) => {
 
   try {
     const order = await membershipService.createMembershipOrder(planId, userId, amount);
-    res.status(201).json(order);
+    res.status(201).json({
+      success: true,
+      status: 'success',
+      message: 'Membership order created successfully',
+      data: order,
+    });
   } catch (error) {
     console.error('Error in purchaseMembership controller:', error);
     res.status(500).json({ message: 'Error purchasing membership', error: error.message });
