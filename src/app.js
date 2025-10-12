@@ -127,7 +127,7 @@ app.use(apiResponseMiddleware);
 app.use(passport.initialize());
 
 // API Routes
-app.use("/api/admins", adminRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/locations", locationRoutes);
