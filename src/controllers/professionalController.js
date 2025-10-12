@@ -24,7 +24,7 @@ export const getProfessionalJobs = async (req, res, next) => {
       totalAmount: booking.totalAmount,
       status: booking.status,
       paymentStatus: booking.paymentStatus,
-      serviceName: booking.service.map(s => s.title).join(', '),
+      serviceName: booking.services?.map(s => s.title).join(', ') || 'Unknown Service',
       createdAt: booking.createdAt
     }));
 
@@ -45,7 +45,7 @@ export const getJobDetails = async (req, res, next) => {
 
     const booking = await Booking.findOne({ _id: jobId, professional: professionalId })
       .populate('customer', 'name phone email profileImage')
-      .populate('service', 'title description price duration');
+      .populate('services.serviceId', 'title description price duration');
 
     if (!booking) {
       return res.sendError('Job not found or not assigned to you', 404);
@@ -60,13 +60,13 @@ export const getJobDetails = async (req, res, next) => {
         email: booking.customer.email,
         image: booking.customer.profileImage?.url || ''
       },
-      service: booking.service.map(s => ({
-        id: s._id,
-        title: s.title,
-        description: s.description,
+      service: booking.services?.map(s => ({
+        id: s.serviceId?._id || s.serviceId,
+        title: s.serviceId?.title || s.title,
+        description: s.serviceId?.description || '',
         price: s.price,
         duration: s.duration
-      })),
+      })) || [],
       scheduledDate: booking.scheduledDate,
       scheduledTime: booking.scheduledTime,
       address: {

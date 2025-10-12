@@ -38,7 +38,7 @@ export const getDashboardStats = async (req, res, next) => {
         .limit(5)
         .populate("customer", "name")
         .populate("professional", "name")
-        .populate("service", "name");
+        .populate("services.serviceId", "name");
     } catch (error) {
       console.error("Error fetching recent bookings:", error.message);
       recentBookings = [];
@@ -227,7 +227,7 @@ export const getDashboardStats = async (req, res, next) => {
           id: booking._id,
           customerName: booking.customer?.name || "Unknown Customer",
           professionalName: booking.professional?.name || "Unassigned",
-          serviceName: booking.service?.name || "Unknown Service",
+          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
@@ -335,7 +335,7 @@ export const getUserDetails = async (req, res, next) => {
       bookings = await Booking.find(bookingQuery)
         .sort("-createdAt")
         .limit(5)
-        .populate("service", "name")
+        .populate("services.serviceId", "name")
         .populate(
           user.role === "customer" ? "professional" : "customer",
           "name"
@@ -347,11 +347,11 @@ export const getUserDetails = async (req, res, next) => {
         user,
         bookings: bookings.map((booking) => ({
           id: booking._id,
-          serviceName: booking.service.name,
+          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
           otherPartyName:
             user.role === "customer"
               ? booking.professional?.name || "Unassigned"
-              : booking.customer.name,
+              : booking.customer?.name || "Unknown",
           date: booking.scheduledDate,
           status: booking.status,
           amount: booking.totalAmount,
@@ -494,13 +494,11 @@ export const deleteUser = async (req, res, next) => {
 // Get all bookings (with filtering)
 export const getAllBookings = async (req, res, next) => {
   try {
-    // Verify user is an admin
-    if (req.user.role !== "admin") {
-      return res.sendError(
-        "Unauthorized. Only admins can access booking list.",
-        403
-      );
-    }
+    console.log("📋 getAllBookings called by user:", {
+      id: req.user?._id,
+      role: req.user?.role,
+      name: req.user?.name,
+    });
 
     const { status, search, page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
@@ -521,7 +519,7 @@ export const getAllBookings = async (req, res, next) => {
     const bookings = await Booking.find(query)
       .populate("customer", "name")
       .populate("professional", "name")
-      .populate("service", "name")
+      .populate("services.serviceId", "name")
       .sort("-createdAt")
       .skip(skip)
       .limit(parseInt(limit));
@@ -529,13 +527,15 @@ export const getAllBookings = async (req, res, next) => {
     // Get total count for pagination
     const total = await Booking.countDocuments(query);
 
+    console.log(`✅ Found ${bookings.length} bookings, total: ${total}`);
+
     res.sendSuccess(
       {
         bookings: bookings.map((booking) => ({
           id: booking._id,
           customerName: booking.customer?.name || "Unknown Customer",
           professionalName: booking.professional?.name || "Unassigned",
-          serviceName: booking.service?.name || "Unknown Service",
+          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
@@ -553,6 +553,7 @@ export const getAllBookings = async (req, res, next) => {
       "Bookings retrieved successfully"
     );
   } catch (error) {
+    console.error("❌ Error in getAllBookings:", error);
     next(error);
   }
 };
@@ -573,7 +574,7 @@ export const getBookingDetails = async (req, res, next) => {
     const booking = await Booking.findById(bookingId)
       .populate("customer", "name phone email")
       .populate("professional", "name phone email")
-      .populate("service", "name description price")
+      .populate("services.serviceId", "name description price")
       .populate("address");
 
     if (!booking) {
@@ -583,15 +584,19 @@ export const getBookingDetails = async (req, res, next) => {
     // Get payment information
     const payment = await Payment.findOne({ bookingId });
 
+    // Extract service information from services array
+    const serviceInfo = booking.services?.[0] || {};
+    const serviceData = serviceInfo.serviceId || {};
+
     res.sendSuccess(
       {
         booking: {
           id: booking._id,
           customer: {
-            id: booking.customer._id,
-            name: booking.customer.name,
-            phone: booking.customer.phone,
-            email: booking.customer.email,
+            id: booking.customer?._id,
+            name: booking.customer?.name,
+            phone: booking.customer?.phone,
+            email: booking.customer?.email,
           },
           professional: booking.professional
             ? {
@@ -602,10 +607,10 @@ export const getBookingDetails = async (req, res, next) => {
               }
             : null,
           service: {
-            id: booking.service._id,
-            name: booking.service.name,
-            description: booking.service.description,
-            price: booking.service.price,
+            id: serviceData._id || serviceInfo.serviceId,
+            name: serviceData.name || serviceInfo.title || "Unknown Service",
+            description: serviceData.description || "",
+            price: serviceInfo.price || serviceData.price || 0,
           },
           address: booking.address,
           scheduledDate: booking.scheduledDate,
@@ -847,7 +852,7 @@ export const getProfessionalDetails = async (req, res, next) => {
       .sort("-createdAt")
       .limit(10)
       .populate("customer", "name")
-      .populate("service", "name");
+      .populate("services.serviceId", "name");
 
     // Get professional's ratings and reviews
     const reviews = await Booking.find({
@@ -863,8 +868,8 @@ export const getProfessionalDetails = async (req, res, next) => {
         professional,
         bookings: bookings.map((booking) => ({
           id: booking._id,
-          customerName: booking.customer.name,
-          serviceName: booking.service.name,
+          customerName: booking.customer?.name || "Unknown",
+          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
           date: booking.scheduledDate,
           status: booking.status,
           amount: booking.totalAmount,
