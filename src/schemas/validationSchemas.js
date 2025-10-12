@@ -269,12 +269,12 @@ export const userSchemas = {
 
   createAddress: Joi.object({
     type: Joi.string().valid('home', 'work', 'other').default('home'),
-    title: Joi.string().min(2).max(50).required(),
-    addressLine1: Joi.string().min(5).max(100).required(),
-    addressLine2: Joi.string().max(100).optional().allow(''),
-    city: Joi.string().min(2).max(50).required(),
-    state: Joi.string().min(2).max(50).optional(),
-    postalCode: Joi.string().length(6).pattern(/^[0-9]+$/).required(),
+    title: Joi.string().min(1).max(100).required(),
+    addressLine1: Joi.string().min(1).max(200).required(),
+    addressLine2: Joi.string().max(200).optional().allow(''),
+    city: Joi.string().min(1).max(100).required(),
+    state: Joi.string().max(100).optional().allow(''),
+    postalCode: Joi.string().min(4).max(10).required(),
     country: Joi.string().max(50).default('IN'),
     coordinates: Joi.object({
       latitude: Joi.number().min(-90).max(90).default(0),
@@ -285,12 +285,12 @@ export const userSchemas = {
 
   updateAddress: Joi.object({
     type: Joi.string().valid('home', 'work', 'other').optional(),
-    title: Joi.string().min(2).max(50).optional(),
-    addressLine1: Joi.string().min(5).max(100).optional(),
-    addressLine2: Joi.string().max(100).optional().allow(''),
-    city: Joi.string().min(2).max(50).optional(),
-    state: Joi.string().min(2).max(50).optional(),
-    postalCode: Joi.string().length(6).pattern(/^[0-9]+$/).optional(),
+    title: Joi.string().min(1).max(100).optional(),
+    addressLine1: Joi.string().min(1).max(200).optional(),
+    addressLine2: Joi.string().max(200).optional().allow(''),
+    city: Joi.string().min(1).max(100).optional(),
+    state: Joi.string().max(100).optional().allow(''),
+    postalCode: Joi.string().min(4).max(10).optional(),
     country: Joi.string().max(50).optional(),
     coordinates: Joi.object({
       latitude: Joi.number().min(-90).max(90),

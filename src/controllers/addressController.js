@@ -6,19 +6,33 @@ import { AppError } from '../utils/appError.js';
 // @route   POST /api/addresses
 // @access  Private
 export const createAddress = asyncHandler(async (req, res, next) => {
-  req.body.user = req.user.id;
+  try {
+    console.log('Creating address with data:', req.body);
+    req.body.user = req.user.id;
 
-  // Ensure isDefault is handled properly
-  if (req.body.isDefault) {
-    // First, set all other addresses for this user to not default
-    await Address.updateMany({ user: req.user.id }, { isDefault: false });
+    // Ensure isDefault is handled properly
+    if (req.body.isDefault) {
+      // First, set all other addresses for this user to not default
+      await Address.updateMany({ user: req.user.id }, { isDefault: false });
+    }
+
+    const address = await Address.create(req.body);
+    console.log('Address created successfully:', address);
+    res.status(201).json({
+      status: 'success',
+      data: { address },
+    });
+  } catch (error) {
+    console.error('Address creation error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      keyPattern: error.keyPattern,
+      keyValue: error.keyValue
+    });
+    return next(new AppError(`Failed to create address: ${error.message}`, 500));
   }
-
-  const address = await Address.create(req.body);
-  res.status(201).json({
-    status: 'success',
-    data: { address },
-  });
 });
 
 // @desc    Get all addresses for a user
