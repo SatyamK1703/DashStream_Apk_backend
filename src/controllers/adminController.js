@@ -38,7 +38,7 @@ export const getDashboardStats = async (req, res, next) => {
         .limit(5)
         .populate("customer", "name")
         .populate("professional", "name")
-        .populate("services.serviceId", "name");
+        .populate("services.serviceId", "title");
     } catch (error) {
       console.error("Error fetching recent bookings:", error.message);
       recentBookings = [];
@@ -227,7 +227,7 @@ export const getDashboardStats = async (req, res, next) => {
           id: booking._id,
           customerName: booking.customer?.name || "Unknown Customer",
           professionalName: booking.professional?.name || "Unassigned",
-          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
+          serviceName: booking.services?.[0]?.serviceId?.title || booking.services?.[0]?.title || "Unknown Service",
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
@@ -335,7 +335,7 @@ export const getUserDetails = async (req, res, next) => {
       bookings = await Booking.find(bookingQuery)
         .sort("-createdAt")
         .limit(5)
-        .populate("services.serviceId", "name")
+        .populate("services.serviceId", "title")
         .populate(
           user.role === "customer" ? "professional" : "customer",
           "name"
@@ -347,7 +347,7 @@ export const getUserDetails = async (req, res, next) => {
         user,
         bookings: bookings.map((booking) => ({
           id: booking._id,
-          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
+          serviceName: booking.services?.[0]?.serviceId?.title || booking.services?.[0]?.title || "Unknown Service",
           otherPartyName:
             user.role === "customer"
               ? booking.professional?.name || "Unassigned"
@@ -519,7 +519,7 @@ export const getAllBookings = async (req, res, next) => {
     const bookings = await Booking.find(query)
       .populate("customer", "name")
       .populate("professional", "name")
-      .populate("services.serviceId", "name")
+      .populate("services.serviceId", "title")
       .sort("-createdAt")
       .skip(skip)
       .limit(parseInt(limit));
@@ -535,7 +535,7 @@ export const getAllBookings = async (req, res, next) => {
           id: booking._id,
           customerName: booking.customer?.name || "Unknown Customer",
           professionalName: booking.professional?.name || "Unassigned",
-          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
+          serviceName: booking.services?.[0]?.serviceId?.title || booking.services?.[0]?.title || "Unknown Service",
           date: booking.scheduledDate,
           time: booking.scheduledTime,
           status: booking.status,
@@ -571,15 +571,24 @@ export const getBookingDetails = async (req, res, next) => {
 
     const { bookingId } = req.params;
 
+    console.log("📋 getBookingDetails called for booking:", bookingId);
+
     const booking = await Booking.findById(bookingId)
       .populate("customer", "name phone email")
       .populate("professional", "name phone email")
-      .populate("services.serviceId", "name description price")
-      .populate("address");
+      .populate("services.serviceId", "title description price");
 
     if (!booking) {
+      console.log("❌ Booking not found:", bookingId);
       return res.sendError("Booking not found", 404);
     }
+
+    console.log("✅ Booking found:", {
+      id: booking._id,
+      customer: booking.customer?._id,
+      professional: booking.professional?._id,
+      services: booking.services?.length
+    });
 
     // Get payment information
     const payment = await Payment.findOne({ bookingId });
@@ -608,17 +617,20 @@ export const getBookingDetails = async (req, res, next) => {
             : null,
           service: {
             id: serviceData._id || serviceInfo.serviceId,
-            name: serviceData.name || serviceInfo.title || "Unknown Service",
+            name: serviceData.title || serviceInfo.title || "Unknown Service",
             description: serviceData.description || "",
             price: serviceInfo.price || serviceData.price || 0,
           },
-          address: booking.address,
+          vehicle: booking.vehicle || null,
+          location: booking.location || null,
           scheduledDate: booking.scheduledDate,
           scheduledTime: booking.scheduledTime,
           status: booking.status,
           paymentStatus: booking.paymentStatus,
+          paymentMethod: booking.paymentMethod,
           totalAmount: booking.totalAmount,
           notes: booking.notes,
+          trackingUpdates: booking.trackingUpdates || [],
           payment: payment
             ? {
                 id: payment._id,
@@ -635,6 +647,7 @@ export const getBookingDetails = async (req, res, next) => {
       "Booking details retrieved successfully"
     );
   } catch (error) {
+    console.error("❌ Error in getBookingDetails:", error);
     next(error);
   }
 };
@@ -852,7 +865,7 @@ export const getProfessionalDetails = async (req, res, next) => {
       .sort("-createdAt")
       .limit(10)
       .populate("customer", "name")
-      .populate("services.serviceId", "name");
+      .populate("services.serviceId", "title");
 
     // Get professional's ratings and reviews
     const reviews = await Booking.find({
@@ -869,7 +882,7 @@ export const getProfessionalDetails = async (req, res, next) => {
         bookings: bookings.map((booking) => ({
           id: booking._id,
           customerName: booking.customer?.name || "Unknown",
-          serviceName: booking.services?.[0]?.serviceId?.name || booking.services?.[0]?.title || "Unknown Service",
+          serviceName: booking.services?.[0]?.serviceId?.title || booking.services?.[0]?.title || "Unknown Service",
           date: booking.scheduledDate,
           status: booking.status,
           amount: booking.totalAmount,
