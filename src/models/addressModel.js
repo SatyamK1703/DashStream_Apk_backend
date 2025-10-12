@@ -6,14 +6,23 @@ const addressSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  name: {
+  type: {
     type: String,
-    required: [true, 'Address name is required'],
+    enum: ['home', 'work', 'other'],
+    default: 'home',
+  },
+  title: {
+    type: String,
+    required: [true, 'Address title is required'],
     trim: true,
   },
-  address: {
+  addressLine1: {
     type: String,
-    required: [true, 'Address line is required'],
+    required: [true, 'Address line 1 is required'],
+    trim: true,
+  },
+  addressLine2: {
+    type: String,
     trim: true,
   },
   city: {
@@ -21,10 +30,29 @@ const addressSchema = new mongoose.Schema({
     required: [true, 'City is required'],
     trim: true,
   },
-  pincode: {
+  state: {
     type: String,
-    required: [true, 'Pincode is required'],
     trim: true,
+  },
+  postalCode: {
+    type: String,
+    required: [true, 'Postal code is required'],
+    trim: true,
+  },
+  country: {
+    type: String,
+    default: 'IN',
+    trim: true,
+  },
+  coordinates: {
+    latitude: {
+      type: Number,
+      default: 0,
+    },
+    longitude: {
+      type: Number,
+      default: 0,
+    },
   },
   isDefault: {
     type: Boolean,

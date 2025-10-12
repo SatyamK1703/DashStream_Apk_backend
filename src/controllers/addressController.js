@@ -7,6 +7,13 @@ import { AppError } from '../utils/appError.js';
 // @access  Private
 export const createAddress = asyncHandler(async (req, res, next) => {
   req.body.user = req.user.id;
+
+  // Ensure isDefault is handled properly
+  if (req.body.isDefault) {
+    // First, set all other addresses for this user to not default
+    await Address.updateMany({ user: req.user.id }, { isDefault: false });
+  }
+
   const address = await Address.create(req.body);
   res.status(201).json({
     status: 'success',

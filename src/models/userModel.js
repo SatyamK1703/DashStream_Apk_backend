@@ -38,13 +38,13 @@ const userSchema = new mongoose.Schema(
     otpExpires: {
       type: Date,
     },
-    vehicle:{
+    vehicle: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
     },
     role: {
       type: String,
-      enum: ["customer", "professional","admin"],
+      enum: ["customer", "professional", "admin"],
       default: "customer",
     },
     profileComplete: {
@@ -94,12 +94,19 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     }],
-   addresses: [{
-      name: String,
-      address: String,
+    addresses: [{
+      type: String,
+      title: String,
+      addressLine1: String,
+      addressLine2: String,
       city: String,
-      landmark:String,
-      pincode: String,
+      state: String,
+      postalCode: String,
+      country: String,
+      coordinates: {
+        latitude: Number,
+        longitude: Number
+      },
       isDefault: Boolean
     }],
     fcmToken: {
@@ -123,14 +130,14 @@ const userSchema = new mongoose.Schema(
       {
         question: String,
         answer: String,
-        type:{
-          type:String,
-          enum:["general","membership","payment","booking","other"],
-          default:"general"
+        type: {
+          type: String,
+          enum: ["general", "membership", "payment", "booking", "other"],
+          default: "general"
         }
       }
     ],
-    reviews:[{
+    reviews: [{
       reviewerName: String,
       reviewText: String,
       rating: {
@@ -138,7 +145,7 @@ const userSchema = new mongoose.Schema(
         default: 0,
         min: 0,
         max: 5
-       },
+      },
     }],
   },
   {

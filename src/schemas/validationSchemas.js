@@ -12,7 +12,7 @@ export const authSchemas = {
         'any.required': 'Phone number is required'
       })
   }),
-  
+
   verifyOtp: Joi.object({
     phone: Joi.string()
       .pattern(/^(\+[1-9]\d{10,14}|[0-9]{10})$/)
@@ -31,7 +31,7 @@ export const authSchemas = {
         'any.required': 'OTP is required'
       })
   }),
-  
+
   // Removed Firebase Phone Authentication schemas as we've migrated to Twilio
 };
 
@@ -55,7 +55,7 @@ export const paymentSchemas = {
       }),
     notes: Joi.object().optional()
   }),
-  
+
   verifyPayment: Joi.object({
     razorpay_order_id: Joi.string().required(),
     razorpay_payment_id: Joi.string().required(),
@@ -63,7 +63,7 @@ export const paymentSchemas = {
   }).messages({
     'any.required': 'All payment verification parameters are required'
   })
-}; 
+};
 
 // Location validation schemas
 export const locationSchemas = {
@@ -92,7 +92,7 @@ export const locationSchemas = {
     batteryLevel: Joi.number().min(0).max(100).optional(),
     networkType: Joi.string().optional()
   }),
-  
+
   updateStatus: Joi.object({
     status: Joi.string()
       .valid('online', 'offline', 'busy', 'away')
@@ -102,7 +102,7 @@ export const locationSchemas = {
         'any.required': 'Status is required'
       })
   }),
-  
+
   setTrackingEnabled: Joi.object({
     enabled: Joi.boolean()
       .required()
@@ -111,7 +111,7 @@ export const locationSchemas = {
         'any.required': 'Enabled flag is required'
       })
   }),
-  
+
   updateTrackingSettings: Joi.object({
     updateInterval: Joi.number().integer().min(5).optional(),
     significantChangeThreshold: Joi.number().min(0).optional(),
@@ -167,7 +167,7 @@ export const bookingSchemas = {
       }),
     notes: Joi.string().max(500).optional()
   }),
-  
+
   updateBookingStatus: Joi.object({
     status: Joi.string()
       .valid('pending', 'confirmed', 'in_progress', 'completed', 'cancelled')
@@ -182,7 +182,7 @@ export const bookingSchemas = {
       otherwise: Joi.optional()
     })
   }),
-  
+
   addTrackingUpdate: Joi.object({
     status: Joi.string()
       .valid('on_the_way', 'arrived', 'started', 'completed')
@@ -197,7 +197,7 @@ export const bookingSchemas = {
       longitude: Joi.number().min(-180).max(180).required()
     }).optional()
   }),
-  
+
   rateBooking: Joi.object({
     rating: Joi.number()
       .min(1)
@@ -220,7 +220,7 @@ export const userSchemas = {
     email: Joi.string().email().optional(),
     profileImage: Joi.string().uri().optional()
   }),
-  
+
   updateProfessionalProfile: Joi.object({
     bio: Joi.string().max(500).optional(),
     experience: Joi.number().integer().min(0).optional(),
@@ -266,24 +266,36 @@ export const userSchemas = {
       }).optional()
     }).optional()
   }),
-  
+
   createAddress: Joi.object({
-    name: Joi.string().min(2).max(50).required(),
-    line1: Joi.string().min(5).max(100).required(),
-    line2: Joi.string().max(100).optional().allow(''),
+    type: Joi.string().valid('home', 'work', 'other').default('home'),
+    title: Joi.string().min(2).max(50).required(),
+    addressLine1: Joi.string().min(5).max(100).required(),
+    addressLine2: Joi.string().max(100).optional().allow(''),
     city: Joi.string().min(2).max(50).required(),
-    state: Joi.string().min(2).max(50).required(),
-    pincode: Joi.string().length(6).pattern(/^[0-9]+$/).required(),
+    state: Joi.string().min(2).max(50).optional(),
+    postalCode: Joi.string().length(6).pattern(/^[0-9]+$/).required(),
+    country: Joi.string().max(50).default('IN'),
+    coordinates: Joi.object({
+      latitude: Joi.number().min(-90).max(90).default(0),
+      longitude: Joi.number().min(-180).max(180).default(0)
+    }).optional(),
     isDefault: Joi.boolean().optional()
   }),
-  
+
   updateAddress: Joi.object({
-    name: Joi.string().min(2).max(50).optional(),
-    line1: Joi.string().min(5).max(100).optional(),
-    line2: Joi.string().max(100).optional().allow(''),
+    type: Joi.string().valid('home', 'work', 'other').optional(),
+    title: Joi.string().min(2).max(50).optional(),
+    addressLine1: Joi.string().min(5).max(100).optional(),
+    addressLine2: Joi.string().max(100).optional().allow(''),
     city: Joi.string().min(2).max(50).optional(),
     state: Joi.string().min(2).max(50).optional(),
-    pincode: Joi.string().length(6).pattern(/^[0-9]+$/).optional(),
+    postalCode: Joi.string().length(6).pattern(/^[0-9]+$/).optional(),
+    country: Joi.string().max(50).optional(),
+    coordinates: Joi.object({
+      latitude: Joi.number().min(-90).max(90),
+      longitude: Joi.number().min(-180).max(180)
+    }).optional(),
     isDefault: Joi.boolean().optional()
   })
 };
@@ -305,7 +317,7 @@ export const serviceSchemas = {
     tags: Joi.array().items(Joi.string()).optional(),
     estimatedTime: Joi.string().optional()
   }),
-  
+
   updateService: Joi.object({
     title: Joi.string().min(3).max(100).optional(),
     description: Joi.string().min(10).max(1000).optional(),
@@ -433,7 +445,7 @@ export const offerSchemas = {
       }),
     terms: Joi.string().max(1000).optional()
   }),
-  
+
   updateOffer: Joi.object({
     title: Joi.string()
       .min(3)
@@ -557,7 +569,7 @@ export const notificationSchemas = {
       .required(),
     data: Joi.object().optional()
   }),
-  
+
   registerDeviceToken: Joi.object({
     token: Joi.string().required(),
     deviceType: Joi.string().valid('ios', 'android', 'web').required(),
@@ -577,7 +589,7 @@ export const membershipSchemas = {
       }),
     autoRenew: Joi.boolean().optional()
   }),
-  
+
   createPlan: Joi.object({
     name: Joi.string().min(3).max(50).required(),
     description: Joi.string().min(10).max(500).required(),
