@@ -510,6 +510,104 @@ export const rateBooking = asyncHandler(async (req, res, next) => {
   });
 });
 
+//PATCH /api/bookings/:id/cancel
+export const cancelBooking = asyncHandler(async (req, res, next) => {
+  const { reason } = req.body;
+
+  const booking = await Booking.findById(req.params.id);
+
+  if (!booking) {
+    return next(new AppError("No booking found with that ID", 404));
+  }
+
+  // Check authorization - customers can cancel their own bookings, professionals can cancel assigned bookings, admins can cancel any
+  if (req.user.role !== "admin") {
+    if (
+      req.user.role === "customer" &&
+      booking.customer.toString() !== req.user.id
+    ) {
+      return next(
+        new AppError("You are not authorized to cancel this booking", 403)
+      );
+    }
+
+    if (
+      req.user.role === "professional" &&
+      (!booking.professional || booking.professional.toString() !== req.user.id)
+    ) {
+      return next(
+        new AppError("You are not authorized to cancel this booking", 403)
+      );
+    }
+  }
+
+  // Check if booking can be cancelled
+  if (booking.status === "cancelled") {
+    return next(new AppError("Booking is already cancelled", 400));
+  }
+
+  if (booking.status === "completed") {
+    return next(new AppError("Cannot cancel a completed booking", 400));
+  }
+
+  // Update booking status to cancelled
+  booking.status = "cancelled";
+
+  // Create a tracking update for cancellation
+  const trackingUpdate = {
+    status: "cancelled",
+    message: reason || `Booking cancelled by ${req.user.role}`,
+    updatedBy: req.user.id,
+    timestamp: Date.now(),
+  };
+
+  // Add tracking update to the booking
+  booking.trackingUpdates.push(trackingUpdate);
+
+  // Save cancellation reason if provided
+  if (reason) {
+    booking.cancellationReason = reason;
+  }
+
+  // Save the booking
+  await booking.save();
+
+  // Fetch the updated booking with populated fields for response
+  const updatedBooking = await Booking.findById(booking._id)
+    .populate("customer", "name phone profileImage")
+    .populate(
+      "professional",
+      "name phone rating profileImage experience specialization"
+    )
+    .populate(
+      "services.serviceId",
+      "title price duration image description category vehicleType"
+    )
+    .populate("trackingUpdates.updatedBy", "name role");
+
+  // Create notification for the other party
+  const recipientId =
+    req.user.role === "customer" ? booking.professional : booking.customer;
+
+  if (recipientId) {
+    await Notification.create({
+      recipient: recipientId,
+      title: "Booking Cancelled",
+      message: reason || `Booking has been cancelled by ${req.user.role}`,
+      type: "booking_cancelled",
+      data: { bookingId: booking._id },
+    });
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Booking cancelled successfully",
+    data: {
+      booking: updatedBooking,
+    },
+  });
+});
+
 //POST /api/bookings/:id/tracking
 export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
   const { status, message, location } = req.body;

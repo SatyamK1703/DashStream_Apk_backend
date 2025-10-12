@@ -5,6 +5,7 @@ import {
   getBooking,
   getMyBookings,
   updateBookingStatus,
+  cancelBooking,
   addTrackingUpdate,
   rateBooking,
   getBookingStats
@@ -28,6 +29,7 @@ router.route('/:id')
   .get(getBooking);
 
 router.patch('/:id/status', updateBookingStatus);
+router.patch('/:id/cancel', cancelBooking);
 router.post('/:id/tracking', restrictTo('professional', 'admin'), addTrackingUpdate);
 router.post('/:id/rate', restrictTo('customer'), rateBooking);
 

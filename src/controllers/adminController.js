@@ -694,10 +694,10 @@ export const updateBooking = async (req, res, next) => {
 // ✅ Cancel Booking
 export const cancelBooking = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { bookingId } = req.params;
     const { reason } = req.body;
 
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.sendError("Booking not found", 404);
     }
