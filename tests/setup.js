@@ -1,6 +1,6 @@
-const dotenv = require("dotenv");
-const mongoose = require("mongoose");
-const { MongoMemoryServer } = require("mongodb-memory-server");
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+import { MongoMemoryServer } from "mongodb-memory-server";
 
 // Load test environment variables
 dotenv.config({ path: ".env.test" });

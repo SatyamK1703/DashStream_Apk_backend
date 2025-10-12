@@ -14,11 +14,6 @@ import {
   deleteUser,
   getUserStats,
   toggleAvailability,
-  createAddress,
-  updateAddress,
-  deleteAddress,
-  getMyAddresses,
-  setDefaultAddress,
 } from '../controllers/userController.js';
 import { protect, restrictTo, optionalAuth } from '../middleware/auth.js';
 
@@ -35,11 +30,6 @@ router.get('/me', getCurrentUser);
 router.patch('/update-profile', updateProfile);
 router.patch('/update-profile-image',updateProfileImage);
 router.delete('/delete-account', deleteAccount);
-router.post('/addresses', createAddress);
-router.get('/addresses', getMyAddresses);
-router.patch('/addresses/:id', updateAddress);
-router.delete('/addresses/:id', deleteAddress);
-router.patch('/addresses/:id/set-default', setDefaultAddress);
 
 // Routes for professionals
 router.patch(

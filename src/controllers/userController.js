@@ -2,7 +2,6 @@ import User from "../models/userModel.js";
 import { asyncHandler } from "../middleware/errorMiddleware.js";
 import { AppError } from "../utils/appError.js";
 import { cloudinary, upload } from "../utils/cloudinary.js";
-import Address from "../models/addressModel.js";
 import { cache, CACHE_TTL, CACHE_KEYS } from "../config/cache.js";
 
 const filterObj = (obj, ...allowedFields) => {
@@ -114,105 +113,6 @@ export const deleteUser = asyncHandler(async (req, res, next) => {
   res.status(204).json({
     status: "success",
     data: null,
-  });
-});
-
-// POST /api/v1/addresses
-export const createAddress = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("User not found", 404));
-
-  const { name, address, city, pincode, isDefault } = req.body;
-
-  // If new address is default, reset old defaults
-  if (isDefault) {
-    user.addresses.forEach((addr) => (addr.isDefault = false));
-  }
-
-  user.addresses.push({ name, address, city, pincode, isDefault });
-
-  await user.save();
-
-  res.status(201).json({
-    status: "success",
-    data: { addresses: user.addresses },
-  });
-});
-
-// GET /api/v1/addresses
-export const getMyAddresses = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id).select("addresses");
-  if (!user) return next(new AppError("User not found", 404));
-
-  res.status(200).json({
-    status: "success",
-    results: user.addresses.length,
-    data: { addresses: user.addresses },
-  });
-});
-
-// PATCH /api/v1/addresses/:addressId
-export const updateAddress = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("User not found", 404));
-
-  const address = user.addresses.id(req.params.addressId);
-  if (!address) return next(new AppError("Address not found", 404));
-
-  const { name, address: addrLine, city, pincode, isDefault } = req.body;
-
-  if (isDefault) {
-    user.addresses.forEach((addr) => (addr.isDefault = false));
-  }
-
-  address.name = name ?? address.name;
-  address.address = addrLine ?? address.address;
-  address.city = city ?? address.city;
-  address.pincode = pincode ?? address.pincode;
-  address.isDefault = isDefault ?? address.isDefault;
-
-  await user.save();
-
-  res.status(200).json({
-    status: "success",
-    data: { address },
-  });
-});
-
-// DELETE /api/v1/addresses/:addressId
-export const deleteAddress = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("User not found", 404));
-
-  const address = user.addresses.id(req.params.addressId);
-  if (!address) return next(new AppError("Address not found", 404));
-
-  address.remove();
-  await user.save();
-
-  res.status(204).json({
-    status: "success",
-    data: null,
-  });
-});
-
-// PATCH /api/v1/addresses/:addressId/set-default
-export const setDefaultAddress = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("User not found", 404));
-
-  const address = user.addresses.id(req.params.addressId);
-  if (!address) return next(new AppError("Address not found", 404));
-  user.addresses.forEach((addr) => (addr.isDefault = false));
-
-  address.isDefault = true;
-
-  await user.save();
-
-  res.status(200).json({
-    status: "success",
-    message: "Default address updated",
-    data: { addresses: user.addresses },
   });
 });
 
