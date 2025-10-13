@@ -105,12 +105,50 @@ export const sendBookingNotification = async (booking, status) => {
   let title, message, actionType;
 
   switch (status) {
+    case 'created':
+      title = 'New Booking Created';
+      message = `A new booking has been created for ${booking.service.name}.`;
+      actionType = 'open_booking';
+      break;
     case 'confirmed':
       title = 'Booking Confirmed';
       message = `Your booking for ${booking.service.name} has been confirmed.`;
       actionType = 'open_booking';
       break;
-    // ... other cases
+    case 'completed':
+      title = 'Service Completed';
+      message = `Your booking for ${booking.service.name} has been marked as completed.`;
+      actionType = 'open_booking';
+      break;
+    case 'cancelled':
+      title = 'Booking Cancelled';
+      message = `Your booking for ${booking.service.name} has been cancelled.`;
+      actionType = 'open_booking';
+      break;
+    case 'in-progress':
+      title = 'Service In Progress';
+      message = `Your booking for ${booking.service.name} is now in progress.`;
+      actionType = 'open_booking';
+      break;
+    case 'assigned':
+      title = 'Professional Assigned';
+      message = `A professional has been assigned to your booking for ${booking.service.name}.`;
+      actionType = 'open_booking';
+      break;
+    case 'rejected':
+      title = 'Booking Rejected';
+      message = `Your booking for ${booking.service.name} has been rejected.`;
+      actionType = 'open_booking';
+      break;
+    case 'rated':
+      title = 'New Rating';
+      message = `A new rating has been submitted for your booking of ${booking.service.name}.`;
+      actionType = 'open_booking';
+      break;
+    default:
+      title = 'Booking Update';
+      message = `There's an update to your booking for ${booking.service.name}.`;
+      actionType = 'open_booking';
   }
 
   const customerId = booking.user;
