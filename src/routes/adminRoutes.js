@@ -13,6 +13,7 @@ import {
   cancelBooking,
   updateBooking,
   getAllProfessionals,
+  createProfessional,
   getProfessionalById,
   getProfessionalDetails,
   verifyProfessional,
@@ -55,7 +56,7 @@ router
   .patch(updateBooking);
 
 // -------------------- Professionals --------------------
-router.route("/professionals").get(getAllProfessionals);
+router.route("/professionals").get(getAllProfessionals).post(createProfessional);
 
 router
   .route("/professionals/:professionalId")

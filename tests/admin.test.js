@@ -618,6 +618,33 @@ describe("Admin API_ENDPOINTS", () => {
         expect(response.body.data.professional.verified).toBe(false);
       });
     });
+
+    describe("POST /api/admins/professionals", () => {
+      test("should create new professional as admin", async () => {
+        const professionalData = {
+          name: "Admin Created Professional",
+          email: generateTestEmail(),
+          phone: "+1234567896",
+          password: "password123",
+          specializations: ["plumbing", "electrical"],
+          hourlyRate: 50,
+        };
+
+        const response = await request(app)
+          .post("/api/admins/professionals")
+          .set(getAuthHeaders(adminToken))
+          .send(professionalData)
+          .expect(201);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.name).toBe(professionalData.name);
+        expect(response.body.data.email).toBe(professionalData.email);
+        expect(response.body.data.role).toBe("professional");
+        expect(response.body.data.professionalInfo.specializations).toEqual(
+          professionalData.specializations
+        );
+      });
+    });
   });
 
   describe("Authorization", () => {

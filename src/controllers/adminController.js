@@ -760,6 +760,127 @@ export const updateBookingStatus = async (req, res) => {
     res.sendError("Failed to update booking status");
   }
 };
+export const createProfessional = async (req, res, next) => {
+  try {
+    // Verify user is an admin
+    if (req.user.role !== "admin") {
+      return res.sendError(
+        "Unauthorized. Only admins can create professionals.",
+        403
+      );
+    }
+
+    const {
+      name,
+      email,
+      phone,
+      password,
+      status,
+      address,
+      skills,
+      serviceAreas,
+      experience,
+      vehicleInfo,
+      profileImage,
+      sendCredentials,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !password) {
+      return res.sendError(
+        "Please provide name, email, phone, and password",
+        400
+      );
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
+    if (existingUser) {
+      return res.sendError(
+        "Professional with this email or phone already exists",
+        400
+      );
+    }
+
+    // Create new professional
+    const professional = new User({
+      name,
+      email,
+      phone,
+      password, // Will be hashed by the model pre-save hook
+      role: "professional",
+      status: status || "pending",
+      isPhoneVerified: true, // Admin-created users are pre-verified
+      profileComplete: true, // Assume profile is complete on creation
+      professionalInfo: {
+        skills: skills || [],
+        serviceAreas: serviceAreas || [],
+        experience: experience || "",
+        vehicleInfo: vehicleInfo || { type: "bike" },
+        availability: {
+          monday: { available: false, slots: [] },
+          tuesday: { available: false, slots: [] },
+          wednesday: { available: false, slots: [] },
+          thursday: { available: false, slots: [] },
+          friday: { available: false, slots: [] },
+          saturday: { available: false, slots: [] },
+          sunday: { available: false, slots: [] },
+        },
+      },
+    });
+
+    // Add address if provided
+    if (address) {
+      // Create a properly formatted address object
+      const formattedAddress = {
+        type: address.type || 'home',
+        name: address.name || `${name}'s Address`,
+        address: address.address || '',
+        landmark: address.landmark || '',
+        city: address.city || '',
+        pincode: address.pincode || '',
+        country: address.country || 'IN',
+        coordinates: address.coordinates || { latitude: 0, longitude: 0 },
+        isDefault: true
+      };
+      
+      professional.addresses = [formattedAddress];
+    }
+
+    // Handle profile image if provided
+    if (profileImage) {
+      // In a real implementation, you would process the image here
+      // For now, we'll just store the URL if it's already a URL
+      if (profileImage.startsWith('http')) {
+        professional.profileImage = { url: profileImage };
+      }
+      // If it's a base64 string, you would process it with cloudinary or similar service
+    }
+
+    await professional.save();
+
+    // Send credentials via email/SMS if requested
+    if (sendCredentials) {
+      // In a real implementation, you would send credentials via email or SMS
+      console.log(`Credentials for ${name}: Email: ${email}, Password: ${password}`);
+    }
+
+    res.sendSuccess(
+      {
+        id: professional._id,
+        name: professional.name,
+        email: professional.email,
+        phone: professional.phone,
+        role: professional.role,
+        status: professional.status,
+        professionalInfo: professional.professionalInfo,
+      },
+      "Professional created successfully"
+    );
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Get all professionals (with filtering)
 export const getAllProfessionals = async (req, res, next) => {
