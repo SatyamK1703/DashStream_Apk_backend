@@ -1,11 +1,12 @@
 import * as membershipService from '../services/membershipService.js';
 
 export const purchaseMembership = async (req, res) => {
+  console.log('Request body:', req.body);
   const { planId, amount } = req.body;
-  const userId = req.user.id;
+  const user = req.user;
 
   try {
-    const order = await membershipService.createMembershipOrder(planId, userId, amount);
+    const order = await membershipService.createMembershipOrder(planId, user, amount);
     res.status(201).json({
       success: true,
       status: 'success',

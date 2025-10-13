@@ -4,29 +4,38 @@ import crypto from 'crypto';
 import razorpayInstance, { getRazorpayKeyId } from "../config/razorpay.js";
 import { AppError } from "../utils/appError.js";
 
-export const createMembershipOrder = async (planId, userId, amount) => {
+export const createMembershipOrder = async (planId, user, amount) => {
   try {
-    const receiptId = `membership_receipt_${Date.now()}`;
-
-    const orderOptions = {
-      amount: amount * 100, // Razorpay expects amount in paise
+    const paymentLinkRequest = {
+      amount: amount * 100,
       currency: "INR",
-      receipt: receiptId,
+      accept_partial: false,
+      description: "For Membership",
+      customer: {
+        name: user.name,
+        email: user.email,
+        contact: user.phone,
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      reminder_enable: true,
       notes: {
         planId: planId.toString(),
-        userId: userId.toString(),
+        userId: user.id.toString(),
       },
+      callback_url: "https://dashstream.com/membership/success", // Replace with your actual success URL
+      callback_method: "get",
     };
 
-    const razorpayOrder = await razorpayInstance.orders.create(orderOptions);
-
-    // Optionally, save a pending membership record here if needed
-    // For now, we'll rely on verifyPayment to create the actual membership
+    const paymentLink = await razorpayInstance.paymentLink.create(paymentLinkRequest);
 
     return {
-      orderId: razorpayOrder.id,
-      amount: razorpayOrder.amount / 100, // Return in original unit
-      currency: razorpayOrder.currency,
+      paymentLink: paymentLink.short_url,
+      orderId: paymentLink.order_id,
+      amount: amount,
+      currency: "INR",
     };
   } catch (error) {
     console.error("Error creating Razorpay membership order:", error);
