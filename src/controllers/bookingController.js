@@ -10,7 +10,10 @@ import { sendBookingNotification } from '../services/notificationService.js';
 //POST /api/bookings
 export const createBooking = asyncHandler(async (req, res, next) => {
   // ... (rest of the function)
-
+  const bookingData = {
+    ...req.body,
+    customer: req.user.id,
+  };
   // Create booking
   const newBooking = await Booking.create(bookingData);
 
