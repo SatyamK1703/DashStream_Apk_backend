@@ -33,6 +33,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import addressRoutes from "./routes/addressRoutes.js";
+import supportRoutes from "./routes/supportRoutes.js";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorMiddleware.js";
@@ -142,6 +143,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/addresses", addressRoutes);
+app.use("/api/support", supportRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
