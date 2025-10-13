@@ -107,47 +107,47 @@ export const sendBookingNotification = async (booking, status) => {
   switch (status) {
     case 'created':
       title = 'New Booking Created';
-      message = `A new booking has been created for ${booking.service.name}.`;
+      message = `A new booking has been created for ${booking.services[0].serviceId.title}.`;
       actionType = 'open_booking';
       break;
     case 'confirmed':
       title = 'Booking Confirmed';
-      message = `Your booking for ${booking.service.name} has been confirmed.`;
+      message = `Your booking for ${booking.services[0].serviceId.title} has been confirmed.`;
       actionType = 'open_booking';
       break;
     case 'completed':
       title = 'Service Completed';
-      message = `Your booking for ${booking.service.name} has been marked as completed.`;
+      message = `Your booking for ${booking.services[0].serviceId.title} has been marked as completed.`;
       actionType = 'open_booking';
       break;
     case 'cancelled':
       title = 'Booking Cancelled';
-      message = `Your booking for ${booking.service.name} has been cancelled.`;
+      message = `Your booking for ${booking.services[0].serviceId.title} has been cancelled.`;
       actionType = 'open_booking';
       break;
     case 'in-progress':
       title = 'Service In Progress';
-      message = `Your booking for ${booking.service.name} is now in progress.`;
+      message = `Your booking for ${booking.services[0].serviceId.title} is now in progress.`;
       actionType = 'open_booking';
       break;
     case 'assigned':
       title = 'Professional Assigned';
-      message = `A professional has been assigned to your booking for ${booking.service.name}.`;
+      message = `A professional has been assigned to your booking for ${booking.services[0].serviceId.title}.`;
       actionType = 'open_booking';
       break;
     case 'rejected':
       title = 'Booking Rejected';
-      message = `Your booking for ${booking.service.name} has been rejected.`;
+      message = `Your booking for ${booking.services[0].serviceId.title} has been rejected.`;
       actionType = 'open_booking';
       break;
     case 'rated':
       title = 'New Rating';
-      message = `A new rating has been submitted for your booking of ${booking.service.name}.`;
+      message = `A new rating has been submitted for your booking of ${booking.services[0].serviceId.title}.`;
       actionType = 'open_booking';
       break;
     default:
       title = 'Booking Update';
-      message = `There's an update to your booking for ${booking.service.name}.`;
+      message = `There's an update to your booking for ${booking.services[0].serviceId.title}.`;
       actionType = 'open_booking';
   }
 
