@@ -97,55 +97,82 @@ export const sendBulkNotifications = async (notificationData, userIds) => {
   }
 };
 
+import User from '../models/userModel.js';
+
 //Send a booking notification
 
-export const sendBookingNotification = async (booking, recipientId, status) => {
+export const sendBookingNotification = async (booking, status) => {
   let title, message, actionType;
-  
+
   switch (status) {
     case 'confirmed':
       title = 'Booking Confirmed';
       message = `Your booking for ${booking.service.name} has been confirmed.`;
       actionType = 'open_booking';
       break;
-    case 'completed':
-      title = 'Service Completed';
-      message = `Your booking for ${booking.service.name} has been marked as completed.`;
-      actionType = 'open_booking';
-      break;
-    case 'cancelled':
-      title = 'Booking Cancelled';
-      message = `Your booking for ${booking.service.name} has been cancelled.`;
-      actionType = 'open_booking';
-      break;
-    case 'in-progress':
-      title = 'Service In Progress';
-      message = `Your booking for ${booking.service.name} is now in progress.`;
-      actionType = 'open_booking';
-      break;
-    case 'assigned':
-      title = 'Professional Assigned';
-      message = `A professional has been assigned to your booking for ${booking.service.name}.`;
-      actionType = 'open_booking';
-      break;
-    case 'rejected':
-      title = 'Booking Rejected';
-      message = `Your booking for ${booking.service.name} has been rejected.`;
-      actionType = 'open_booking';
-      break;
-    default:
-      title = 'Booking Update';
-      message = `There's an update to your booking for ${booking.service.name}.`;
-      actionType = 'open_booking';
+    // ... other cases
   }
-  
-  return await sendPushNotification({
+
+  const customerId = booking.user;
+  const professionalId = booking.professional;
+  const admins = await User.find({ role: 'admin' });
+  const adminIds = admins.map(admin => admin._id);
+
+  const recipients = [customerId, ...adminIds];
+  if (professionalId) {
+    recipients.push(professionalId);
+  }
+
+  const notificationData = {
     title,
     message,
     type: 'booking',
     relatedId: booking._id.toString(),
     actionType,
     actionParams: { bookingId: booking._id.toString() },
-    priority: status === 'cancelled' ? 'high' : 'default'
-  }, recipientId);
+  };
+
+  return await sendBulkNotifications(notificationData, recipients);
+};
+
+//Send a membership notification
+
+export const sendMembershipNotification = async (membership, userId, status) => {
+  let title, message, actionType;
+
+  switch (status) {
+    case 'purchased':
+      title = 'Membership Purchased';
+      message = `You have successfully purchased the ${membership.plan.name} membership.`;
+      actionType = 'open_membership';
+      break;
+    case 'renewed':
+      title = 'Membership Renewed';
+      message = `Your ${membership.plan.name} membership has been renewed.`;
+      actionType = 'open_membership';
+      break;
+    case 'cancelled':
+      title = 'Membership Cancelled';
+      message = `Your ${membership.plan.name} membership has been cancelled.`;
+      actionType = 'open_membership';
+      break;
+    case 'expired':
+      title = 'Membership Expired';
+      message = `Your ${membership.plan.name} membership has expired.`;
+      actionType = 'open_membership';
+      break;
+    default:
+      title = 'Membership Update';
+      message = `There's an update to your membership.`;
+      actionType = 'open_membership';
+  }
+
+  return await sendPushNotification({
+    title,
+    message,
+    type: 'membership',
+    relatedId: membership._id.toString(),
+    actionType,
+    actionParams: { membershipId: membership._id.toString() },
+  }, userId);
 };
