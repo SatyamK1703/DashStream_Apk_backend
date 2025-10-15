@@ -22,6 +22,7 @@ import {
   assignProfessional,
   updateProfessional,
   updateProfessionalVerification,
+  getAvailableProfessionals,
   getAllServices,
   getServiceById,
   createService,
@@ -107,6 +108,10 @@ router
 router
   .route("/professionals/:professionalId/verification")
   .patch(updateProfessionalVerification); // handle verification updates
+
+router
+  .route("/bookings/:bookingId/available-professionals")
+  .get(getAvailableProfessionals);
 
 router
   .route("/bookings/:bookingId/assign-professional")

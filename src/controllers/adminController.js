@@ -1246,6 +1246,64 @@ export const verifyProfessional = async (req, res) => {
   }
 };
 
+// ✅ Get Available Professionals for Booking
+export const getAvailableProfessionals = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    
+    // Verify booking exists
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.sendError("Booking not found", 404);
+    }
+    
+    // Get service details to match with professional specializations
+    const serviceId = booking.service;
+    const service = await Service.findById(serviceId);
+    
+    // Find professionals with matching specialization
+    // Only get active and verified professionals
+    const query = { 
+      role: "professional",
+      status: "active",
+      profileComplete: true, // Using this as verified flag
+    };
+    
+    // If service category exists, use it to filter professionals by specialization
+    if (service && service.category) {
+      query["professionalInfo.specializations"] = service.category;
+    }
+    
+    const professionals = await User.find(query)
+      .select('_id name email phone profileImage professionalInfo')
+      .sort('name');
+    
+    res.sendSuccess(
+      { 
+        professionals: professionals.map(prof => ({
+          id: prof._id,
+          name: prof.name,
+          email: prof.email,
+          phone: prof.phone,
+          profileImage: prof.profileImage,
+          rating: prof.professionalInfo?.rating || 0,
+          specializations: prof.professionalInfo?.specializations || [],
+        })),
+        booking: {
+          id: booking._id,
+          service: booking.service,
+          status: booking.status,
+          scheduledTime: booking.scheduledTime
+        }
+      },
+      "Available professionals retrieved successfully"
+    );
+  } catch (error) {
+    console.error("Get available professionals error:", error);
+    res.sendError("Failed to get available professionals");
+  }
+};
+
 // ✅ Assign Professional to Booking
 export const assignProfessional = async (req, res) => {
   try {
