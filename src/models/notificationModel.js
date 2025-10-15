@@ -32,7 +32,7 @@ const notificationSchema = new mongoose.Schema(
     },
     actionType: {
       type: String,
-      enum: ['open_booking', 'open_chat', 'open_profile', 'open_service', 'open_payment', 'none'],
+      enum: ['open_booking', 'open_chat', 'open_profile', 'open_service', 'open_payment', 'open_support_ticket', 'none'],
       default: 'none'
     },
     actionParams: {

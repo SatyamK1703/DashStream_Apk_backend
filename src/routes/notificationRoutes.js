@@ -28,7 +28,7 @@ router.use(protect);
 // Routes for all authenticated users
 router.get("/", getMyNotifications);
 router.get("/unread-count", getUnreadCount);
-router.patch("/mark-all-read", markAllAsRead);
+router.patch("/read-all", markAllAsRead);
 router.delete("/delete-read", deleteReadNotifications);
 
 // Allow authenticated users to GET /PATCH their own notification preferences

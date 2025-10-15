@@ -1,4 +1,6 @@
 import Question from '../models/questionModel.js';
+import User from '../models/userModel.js';
+import { sendBulkNotifications, sendPushNotification } from './notificationService.js';
 
 export const createQuestion = async (userId, issueType, message) => {
   const question = new Question({
@@ -7,6 +9,22 @@ export const createQuestion = async (userId, issueType, message) => {
     message,
   });
   await question.save();
+
+  // Notify admins
+  const admins = await User.find({ role: 'admin' });
+  const adminIds = admins.map(admin => admin._id);
+
+  if (adminIds.length > 0) {
+    const notificationData = {
+      title: 'New Support Ticket',
+      message: `A new support ticket has been submitted regarding "${issueType}".`,
+      type: 'system',
+      actionType: 'open_support_ticket',
+      actionParams: { questionId: question._id.toString() },
+    };
+    await sendBulkNotifications(notificationData, adminIds);
+  }
+
   return question;
 };
 
@@ -23,5 +41,17 @@ export const replyToQuestion = async (questionId, userId, message) => {
   question.replies.push({ user: userId, message });
   question.isRead = true;
   await question.save();
+
+  // Notify customer
+  const customerId = question.user;
+  const notificationData = {
+    title: 'Reply to your support ticket',
+    message: 'An admin has replied to your support ticket.',
+    type: 'system',
+    actionType: 'open_support_ticket',
+    actionParams: { questionId: question._id.toString() },
+  };
+  await sendPushNotification(notificationData, customerId);
+
   return question;
 };
