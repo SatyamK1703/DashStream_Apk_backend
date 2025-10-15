@@ -1075,10 +1075,26 @@ export const getProfessionalById = async (req, res) => {
     
     console.log("Fetching professional with ID:", professionalId);
 
-    const professional = await User.findOne({
+    // Check if the ID is valid
+    if (!mongoose.Types.ObjectId.isValid(professionalId)) {
+      console.log("Invalid ID format:", professionalId);
+      return res.sendError("Invalid professional ID format", 400);
+    }
+
+    // First try to find by _id
+    let professional = await User.findOne({
       _id: professionalId,
       role: "professional",
     }).select("-otp -otpExpires");
+    
+    // If not found, try to find by id field (in case it's stored differently)
+    if (!professional) {
+      console.log("Professional not found by _id, trying id field");
+      professional = await User.findOne({
+        id: professionalId,
+        role: "professional",
+      }).select("-otp -otpExpires");
+    }
 
     if (!professional) {
       console.log("Professional not found with ID:", professionalId);
