@@ -2,6 +2,7 @@ import User from "../models/userModel.js";
 import Booking from "../models/bookingModel.js";
 import Service from "../models/serviceModel.js";
 import Payment from "../models/paymentModel.js";
+import { sendPushNotification } from "../services/notificationService.js";
 import mongoose from "mongoose";
 
 // Get dashboard statistics
@@ -1398,6 +1399,29 @@ export const assignProfessional = async (req, res) => {
     });
 
     await booking.save();
+
+    // --- Send Notifications ---
+    // To Customer
+    const customerId = booking.customer;
+    const customerNotificationData = {
+      title: 'Service Confirmed',
+      message: `Service confirmed and Professional Assigned: ${professional.name}`,
+      type: 'booking',
+      actionType: 'open_booking',
+      actionParams: { bookingId: booking._id.toString() },
+    };
+    await sendPushNotification(customerNotificationData, customerId);
+
+    // To Professional
+    const professionalNotificationData = {
+      title: 'New Service Assigned',
+      message: 'You have a new order/service.',
+      type: 'booking',
+      actionType: 'open_booking',
+      actionParams: { bookingId: booking._id.toString() },
+    };
+    await sendPushNotification(professionalNotificationData, professional._id);
+    // --- End of Notifications ---
 
     // Fetch the updated booking with populated fields
     const updatedBooking = await Booking.findById(booking._id)
