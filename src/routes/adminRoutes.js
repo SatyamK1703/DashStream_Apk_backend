@@ -1,4 +1,6 @@
 import express from "express";
+import mongoose from "mongoose";
+import User from "../models/userModel.js";
 import { protect, restrictTo } from "../middleware/auth.js";
 import {
   getDashboardStats,
@@ -107,7 +109,7 @@ router
   .patch(updateProfessionalVerification); // handle verification updates
 
 router
-  .route("/professionals/:bookingId/assign-professional")
+  .route("/bookings/:bookingId/assign-professional")
   .patch(assignProfessional);
 
 // -------------------- Services --------------------
