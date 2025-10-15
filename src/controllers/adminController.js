@@ -1251,56 +1251,103 @@ export const getAvailableProfessionals = async (req, res) => {
   try {
     const { bookingId } = req.params;
     
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.sendError("Invalid booking ID format", 400);
+    }
+    
     // Verify booking exists
     const booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.sendError("Booking not found", 404);
     }
     
-    // Get service details to match with professional specializations
-    const serviceId = booking.service;
-    const service = await Service.findById(serviceId);
-    
-    // Find professionals with matching specialization
-    // Only get active and verified professionals
-    const query = { 
-      role: "professional",
-      status: "active",
-      profileComplete: true, // Using this as verified flag
-    };
-    
-    // If service category exists, use it to filter professionals by specialization
-    if (service && service.category) {
-      query["professionalInfo.specializations"] = service.category;
+    // Get service details from the booking's services array
+    let serviceCategories = [];
+    if (booking.services && booking.services.length > 0) {
+      // Extract service IDs from booking
+      const serviceIds = booking.services.map(s => s.serviceId);
+      
+      // Find all services in the booking
+      const services = await Service.find({ _id: { $in: serviceIds } });
+      
+      // Extract categories
+      serviceCategories = services
+        .map(s => s.category)
+        .filter(Boolean); // Remove any undefined/null values
     }
     
+    console.log(`Finding professionals for booking ${bookingId} with service categories:`, serviceCategories);
+    
+    // Find professionals
+    // Base query - get all professionals regardless of specialization
+    const query = { 
+      role: "professional",
+    };
+    
+    // Get all professionals - we'll sort them by relevance later
     const professionals = await User.find(query)
-      .select('_id name email phone profileImage professionalInfo')
+      .select('_id name email phone profileImage professionalInfo status')
       .sort('name');
     
-    res.sendSuccess(
-      { 
-        professionals: professionals.map(prof => ({
+    console.log(`Found ${professionals.length} professionals total`);
+    
+    // Filter and sort professionals by relevance
+    const sortedProfessionals = professionals
+      // Filter out inactive professionals
+      .filter(prof => prof.status !== 'inactive')
+      // Map to include relevance score
+      .map(prof => {
+        // Calculate relevance score
+        let relevanceScore = 0;
+        
+        // Higher score for verified/complete profile
+        if (prof.profileComplete) relevanceScore += 10;
+        
+        // Higher score for matching specializations
+        const specializations = prof.professionalInfo?.specializations || [];
+        const matchingSpecs = specializations.filter(spec => 
+          serviceCategories.includes(spec)
+        );
+        
+        relevanceScore += matchingSpecs.length * 5;
+        
+        // Higher score for higher ratings
+        const rating = prof.professionalInfo?.rating || 0;
+        relevanceScore += rating;
+        
+        return {
           id: prof._id,
           name: prof.name,
           email: prof.email,
           phone: prof.phone,
-          profileImage: prof.profileImage,
-          rating: prof.professionalInfo?.rating || 0,
-          specializations: prof.professionalInfo?.specializations || [],
-        })),
+          profileImage: prof.profileImage?.url,
+          rating: rating,
+          specializations: specializations,
+          status: prof.status,
+          verified: !!prof.profileComplete,
+          relevanceScore
+        };
+      })
+      // Sort by relevance score (highest first)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+    
+    res.sendSuccess(
+      { 
+        professionals: sortedProfessionals,
         booking: {
           id: booking._id,
-          service: booking.service,
+          services: booking.services,
           status: booking.status,
-          scheduledTime: booking.scheduledTime
+          scheduledDate: booking.scheduledDate,
+          scheduledTime: booking.scheduledTime,
+          location: booking.location
         }
       },
       "Available professionals retrieved successfully"
     );
   } catch (error) {
     console.error("Get available professionals error:", error);
-    res.sendError("Failed to get available professionals");
+    res.sendError(`Failed to get available professionals: ${error.message}`);
   }
 };
 
@@ -1309,6 +1356,21 @@ export const assignProfessional = async (req, res) => {
   try {
     const { bookingId } = req.params; // bookingId
     const { professionalId } = req.body;
+
+    if (!professionalId) {
+      return res.sendError("Professional ID is required", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.sendError("Invalid booking ID format", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(professionalId)) {
+      return res.sendError("Invalid professional ID format", 400);
+    }
+
+    // Log the IDs for debugging
+    console.log(`Assigning professional ${professionalId} to booking ${bookingId}`);
 
     const booking = await Booking.findById(bookingId);
     if (!booking) {
@@ -1323,17 +1385,33 @@ export const assignProfessional = async (req, res) => {
       return res.sendError("Professional not found", 404);
     }
 
+    // Update booking with professional
     booking.professional = professional._id;
     booking.status = "confirmed"; // auto-confirm when assigned
+    
+    // Add tracking update
+    booking.trackingUpdates.push({
+      status: "confirmed",
+      message: `Professional ${professional.name} assigned to booking`,
+      updatedBy: req.user._id,
+      timestamp: new Date()
+    });
+
     await booking.save();
 
+    // Fetch the updated booking with populated fields
+    const updatedBooking = await Booking.findById(booking._id)
+      .populate("customer", "name phone profileImage")
+      .populate("professional", "name phone profileImage")
+      .populate("services.serviceId", "title price duration");
+
     res.sendSuccess(
-      { booking },
+      { booking: updatedBooking },
       "Professional assigned to booking successfully"
     );
   } catch (error) {
     console.error("Assign professional error:", error);
-    res.sendError("Failed to assign professional to booking");
+    res.sendError(`Failed to assign professional to booking: ${error.message}`);
   }
 };
 
