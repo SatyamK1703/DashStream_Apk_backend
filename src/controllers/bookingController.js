@@ -9,14 +9,38 @@ import { sendBookingNotification } from '../services/notificationService.js';
 
 //POST /api/bookings
 export const createBooking = asyncHandler(async (req, res, next) => {
-  // ... (rest of the function)
-  const { service, ...otherBookingData } = req.body;
+  const { service: serviceIds, ...otherBookingData } = req.body;
+
+  if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+    return next(new AppError('Please provide at least one service.', 400));
+  }
+
+  const services = await Service.find({ '_id': { $in: serviceIds } }).select('title price duration');
+
+  if (services.length !== serviceIds.length) {
+    const foundIds = services.map(s => s._id.toString());
+    const notFoundIds = serviceIds.filter(id => !foundIds.includes(id));
+    return next(new AppError(`Services not found: ${notFoundIds.join(', ')}`, 404));
+  }
+
+  const servicesForBooking = services.map(service => ({
+    serviceId: service._id,
+    title: service.title,
+    price: service.price,
+    duration: service.duration,
+  }));
+
+  const totalAmount = servicesForBooking.reduce((sum, item) => sum + item.price, 0);
+  const estimatedDuration = servicesForBooking.reduce((sum, item) => sum + item.duration, 0);
 
   const bookingData = {
     ...otherBookingData,
     customer: req.user.id,
-    services: service.map(serviceId => ({ serviceId })),
+    services: servicesForBooking,
+    totalAmount,
+    estimatedDuration,
   };
+
   // Create booking
   const newBooking = await Booking.create(bookingData);
 
