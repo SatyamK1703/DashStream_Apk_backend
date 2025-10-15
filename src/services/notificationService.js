@@ -151,7 +151,7 @@ export const sendBookingNotification = async (booking, status) => {
       actionType = 'open_booking';
   }
 
-  const customerId = booking.user;
+  const customerId = booking.customer;
   const professionalId = booking.professional;
   const admins = await User.find({ role: 'admin' });
   const adminIds = admins.map(admin => admin._id);
