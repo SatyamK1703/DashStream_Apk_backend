@@ -1070,18 +1070,26 @@ export const getProfessionalDetails = async (req, res, next) => {
 // ✅ Get professional by ID
 export const getProfessionalById = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Fix: Use professionalId instead of id to match the route parameter
+    const { professionalId } = req.params;
+    
+    console.log("Fetching professional with ID:", professionalId);
 
     const professional = await User.findOne({
-      _id: id,
+      _id: professionalId,
       role: "professional",
     }).select("-otp -otpExpires");
 
     if (!professional) {
+      console.log("Professional not found with ID:", professionalId);
       return res.sendError("Professional not found", 404);
     }
 
-    res.sendSuccess({ professional }, "Professional fetched successfully");
+    console.log("Professional found:", professional.name);
+    
+    // Return the professional directly instead of nested in an object
+    // This matches the format expected by the frontend
+    res.sendSuccess(professional, "Professional fetched successfully");
   } catch (error) {
     console.error("Get professional error:", error);
     res.sendError("Failed to fetch professional");
