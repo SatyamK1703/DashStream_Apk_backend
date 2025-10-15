@@ -102,12 +102,7 @@ const errorHandler = (err, req, res, next) => {
   if (process.env.NODE_ENV === "development") {
     sendErrorDev(err, res, requestLogger);
   } else if (process.env.NODE_ENV === "production") {
-    let error = Object.create(err); // preserve prototype chain
-    error.message = err.message;
-    error.name = err.name;
-    error.code = err.code;
-    error.errors = err.errors;
-    error.keyValue = err.keyValue;
+    let error = { ...err, name: err.name, message: err.message };
 
     // Handle specific error types
     if (error.code === 11000) error = handleDuplicateFieldsDB(error);
