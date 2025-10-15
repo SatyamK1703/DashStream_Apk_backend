@@ -4,6 +4,9 @@ import validator from "validator";
 
 
 
+// Import bcrypt for password hashing
+import bcrypt from "bcryptjs";
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -68,6 +71,34 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    password: {
+      type: String,
+      select: false,
+    },
+    professionalInfo: {
+      skills: [String],
+      serviceAreas: [String],
+      experience: String,
+      vehicleInfo: {
+        type: {
+          type: String,
+          enum: ["bike", "car", "van", "truck"],
+          default: "bike"
+        },
+        model: String,
+        year: Number,
+        licensePlate: String
+      },
+      availability: {
+        monday: { available: Boolean, slots: [{ start: String, end: String }] },
+        tuesday: { available: Boolean, slots: [{ start: String, end: String }] },
+        wednesday: { available: Boolean, slots: [{ start: String, end: String }] },
+        thursday: { available: Boolean, slots: [{ start: String, end: String }] },
+        friday: { available: Boolean, slots: [{ start: String, end: String }] },
+        saturday: { available: Boolean, slots: [{ start: String, end: String }] },
+        sunday: { available: Boolean, slots: [{ start: String, end: String }] }
+      }
+    },
     trackingEnabled: {
       type: Boolean,
       default: false
@@ -95,14 +126,20 @@ const userSchema = new mongoose.Schema(
       ref: 'User'
     }],
     addresses: [{
-      type: String,
-      title: String,
-      addressLine1: String,
-      addressLine2: String,
+      type: {
+        type: String,
+        enum: ["home", "work", "other"],
+        default: "home"
+      },
+      name: String,
+      address: String,
+      landmark: String,
       city: String,
-      state: String,
-      postalCode: String,
-      country: String,
+      pincode: String,
+      country: {
+        type: String,
+        default: "IN"
+      },
       coordinates: {
         latitude: Number,
         longitude: Number
@@ -154,6 +191,31 @@ const userSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// Pre-save hook to hash password
+userSchema.pre('save', async function(next) {
+  // Only hash the password if it's modified (or new)
+  if (!this.isModified('password')) return next();
+  
+  try {
+    // Generate a salt
+    const salt = await bcrypt.genSalt(10);
+    // Hash the password along with the new salt
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to check if password is correct
+userSchema.methods.correctPassword = async function(candidatePassword) {
+  // Load password field which is not selected by default
+  const user = await User.findById(this._id).select('+password');
+  if (!user || !user.password) return false;
+  
+  return await bcrypt.compare(candidatePassword, user.password);
+};
 
 const User = mongoose.model("User", userSchema);
 export default User;

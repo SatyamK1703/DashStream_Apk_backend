@@ -840,7 +840,10 @@ export const createProfessional = async (req, res, next) => {
         city: address.city || '',
         pincode: address.pincode || '',
         country: address.country || 'IN',
-        coordinates: address.coordinates || { latitude: 0, longitude: 0 },
+        coordinates: {
+          latitude: address.coordinates?.latitude || 0,
+          longitude: address.coordinates?.longitude || 0
+        },
         isDefault: true
       };
       
@@ -851,8 +854,10 @@ export const createProfessional = async (req, res, next) => {
     if (profileImage) {
       // In a real implementation, you would process the image here
       // For now, we'll just store the URL if it's already a URL
-      if (profileImage.startsWith('http')) {
+      if (typeof profileImage === 'string' && profileImage.startsWith('http')) {
         professional.profileImage = { url: profileImage };
+      } else if (profileImage && profileImage.url) {
+        professional.profileImage = { url: profileImage.url };
       }
       // If it's a base64 string, you would process it with cloudinary or similar service
     }
@@ -878,7 +883,46 @@ export const createProfessional = async (req, res, next) => {
       "Professional created successfully"
     );
   } catch (error) {
-    next(error);
+    console.error("Create professional error:", error);
+    
+    // Handle specific error types
+    if (error.code === 11000) {
+      // Duplicate key error (usually email or phone)
+      return res.sendError(
+        "Professional with this email or phone already exists",
+        400
+      );
+    }
+    
+    if (error.name === 'ValidationError') {
+      // Mongoose validation error
+      const errorMessages = Object.values(error.errors).map(err => err.message);
+      return res.sendError(
+        `Validation error: ${errorMessages.join(', ')}`,
+        400
+      );
+    }
+    
+    if (error.name === 'TypeError' && error.message.includes('coordinates')) {
+      // Handle coordinates error specifically
+      return res.sendError(
+        "Invalid coordinates format. Please provide valid latitude and longitude values.",
+        400
+      );
+    }
+    
+    // Log the full error for debugging
+    console.error("Full error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
+    
+    return res.sendError(
+      "Failed to create professional: " + (error.message || "Unknown error"),
+      500
+    );
   }
 };
 
