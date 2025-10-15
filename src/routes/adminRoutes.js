@@ -58,6 +58,41 @@ router
 // -------------------- Professionals --------------------
 router.route("/professionals").get(getAllProfessionals).post(createProfessional);
 
+// Debug endpoint to check if professional exists
+router.get("/debug/professional/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log("Debug: Checking professional with ID:", id);
+    
+    // Check if the ID is valid
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
+    
+    // Try to find the user with any role
+    const user = await User.findById(id);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found with this ID" });
+    }
+    
+    // Check if the user is a professional
+    const isProfessional = user.role === "professional";
+    
+    return res.status(200).json({
+      message: "Debug info",
+      userExists: true,
+      isProfessional,
+      role: user.role,
+      name: user.name,
+      id: user._id
+    });
+  } catch (error) {
+    console.error("Debug error:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 router
   .route("/professionals/:professionalId")
   .get(getProfessionalById) // basic details
