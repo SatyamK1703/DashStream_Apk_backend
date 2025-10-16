@@ -127,7 +127,7 @@ class FirebaseService {
         data: notification.data || {}
       };
       
-      return await messaging.sendMulticast(message);
+      return await messaging.sendEachForMulticast(message);
     } catch (error) {
       console.error('Error sending multicast notification:', error);
       throw error;

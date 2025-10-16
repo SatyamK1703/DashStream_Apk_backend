@@ -96,14 +96,27 @@ export const getAllOffers = asyncHandler(async (req, res, next) => {
 
 // GET /api/offers/active - Get only active and valid offers
 export const getActiveOffers = asyncHandler(async (req, res, next) => {
+  console.log('getActiveOffers called');
+  const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
-  
-  // Build filter object
-  const offers = await Offer.getActiveOffers(filters)
-    .limit(limit)
+  const skip = (page - 1) * limit;
+
+  const offers = await Offer.getActiveOffers()
+    .skip(skip)
+    .limit(limit);
+
+  const totalCount = await Offer.countDocuments({
+    isActive: true,
+    validFrom: { $lte: new Date() },
+    validUntil: { $gte: new Date() },
+  });
+
   res.status(200).json({
     status: 'success',
     results: offers.length,
+    totalCount,
+    currentPage: page,
+    totalPages: Math.ceil(totalCount / limit),
     offers
   });
 });
