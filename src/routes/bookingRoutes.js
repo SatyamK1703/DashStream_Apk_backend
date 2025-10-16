@@ -8,7 +8,8 @@ import {
   cancelBooking,
   addTrackingUpdate,
   rateBooking,
-  getBookingStats
+  getBookingStats,
+  getBookingTracking
 } from '../controllers/bookingController.js';
 
 import { protect,restrictTo } from '../middleware/auth.js';
@@ -27,6 +28,8 @@ router.post('/', restrictTo('customer'),createBooking);
 // Routes for specific bookings
 router.route('/:id')
   .get(getBooking);
+
+router.get('/:id/tracking', getBookingTracking);
 
 router.patch('/:id/status', updateBookingStatus);
 router.patch('/:id/cancel', cancelBooking);

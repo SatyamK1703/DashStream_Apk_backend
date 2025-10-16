@@ -455,6 +455,34 @@ export const cancelBooking = asyncHandler(async (req, res, next) => {
   });
 });
 
+//GET /api/bookings/:id/tracking
+export const getBookingTracking = asyncHandler(async (req, res, next) => {
+  const booking = await Booking.findById(req.params.id).populate(
+    "trackingUpdates.updatedBy",
+    "name role"
+  );
+
+  if (!booking) {
+    return next(new AppError("No booking found with that ID", 404));
+  }
+
+  // Check if user is authorized to view this booking's tracking
+  if (
+    req.user.role !== "admin" &&
+    booking.customer.toString() !== req.user.id &&
+    (!booking.professional || booking.professional.toString() !== req.user.id)
+  ) {
+    return next(
+      new AppError("You are not authorized to view this booking's tracking", 403)
+    );
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: booking.trackingUpdates,
+  });
+});
+
 //POST /api/bookings/:id/tracking
 export const addTrackingUpdate = asyncHandler(async (req, res, next) => {
   const { status, message, location } = req.body;
