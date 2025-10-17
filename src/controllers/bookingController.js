@@ -27,7 +27,7 @@ export const createBooking = asyncHandler(async (req, res, next) => {
     serviceId: service._id,
     title: service.title,
     price: service.price,
-    duration: service.duration,
+    duration: parseInt(service.duration, 10) || 0,
   }));
 
   const totalAmount = servicesForBooking.reduce((sum, item) => sum + item.price, 0);

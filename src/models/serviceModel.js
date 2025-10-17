@@ -35,7 +35,7 @@ const serviceSchema = new mongoose.Schema(
     },
     discountPrice: Number,
     duration: {
-      type: String, // Keep as string like "45 mins"
+      type: Number, // in minutes
       required: [true, 'Service must have a duration']
     },
     image: {
