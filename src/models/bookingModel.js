@@ -12,9 +12,21 @@ const serviceItemSchema = new Schema(
   { _id: false }
 );
 
+const addressSchema = new Schema(
+  {
+    type: { type: String },
+    name: { type: String },
+    address: { type: String },
+    landmark: { type: String },
+    city: { type: String },
+    pincode: { type: String },
+  },
+  { _id: false }
+);
+
 const locationSchema = new Schema(
   {
-    address: { type: String },
+    address: { type: addressSchema },
     lat: { type: Number },
     lng: { type: Number },
   },
