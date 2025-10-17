@@ -1,0 +1,20 @@
+{
+  "entity": "event",
+  "account_id": "acc_test",
+  "id": "evt_test_123",
+  "event": "payment.captured",
+  "contains": ["payment"],
+  "payload": {
+    "payment": {
+      "entity": {
+        "id": "pay_test123",
+        "entity": "payment",
+        "amount": 10000,
+        "currency": "INR",
+        "order_id": "order_test123",
+        "method": "upi",
+        "status": "captured"
+      }
+    }
+  }
+}

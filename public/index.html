@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DashSteam API is here</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f7f9fc;
+      }
+      header {
+        background-color: #0066cc;
+        color: white;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+      }
+      .container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .endpoint {
+        margin-bottom: 15px;
+        padding: 15px;
+        background-color: #f5f7fa;
+        border-left: 4px solid #0066cc;
+        border-radius: 3px;
+      }
+      .endpoint h3 {
+        margin-top: 0;
+        color: #0066cc;
+      }
+      code {
+        background-color: #f1f1f1;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-family: "Courier New", Courier, monospace;
+      }
+      .status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        color: white;
+        background-color: #22c55e;
+      }
+      footer {
+        margin-top: 30px;
+        text-align: center;
+        font-size: 0.9em;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>DashStream API</h1>
+      <p>Backend API for the DashStream mobile application</p>
+      <div class="status">Online</div>
+    </header>
+
+    <div class="container">
+      <h2>API Documentation</h2>
+      <p>
+        Welcome to the DashStream API. This API provides API_ENDPOINTS for
+        authentication, user management, services, bookings, and notifications.
+      </p>
+
+      <h2>Base URL</h2>
+      <p>All API requests should be made to:</p>
+      <code id="base-url">https://api.dashstream.com/api</code>
+      <script>
+        // Update base URL to match current domain
+        document.getElementById("base-url").textContent =
+          window.location.origin + "/api";
+      </script>
+
+      <h2>Authentication</h2>
+      <p>
+        The API uses JWT tokens for authentication. Include the token in the
+        Authorization header:
+      </p>
+      <code>Authorization: Bearer YOUR_TOKEN</code>
+
+      <h2>Key API_ENDPOINTS</h2>
+
+      <div class="endpoint">
+        <h3>Authentication</h3>
+        <p><code>POST /api/auth/send-otp</code> - Send OTP to phone number</p>
+        <p><code>POST /api/auth/verify-otp</code> - Verify OTP and get token</p>
+      </div>
+
+      <div class="endpoint">
+        <h3>User Management</h3>
+        <p><code>GET /api/users/profile</code> - Get user profile</p>
+        <p><code>PUT /api/users/profile</code> - Update user profile</p>
+      </div>
+
+      <div class="endpoint">
+        <h3>Services</h3>
+        <p><code>GET /api/services</code> - Get all services</p>
+        <p><code>GET /api/services/:id</code> - Get service details</p>
+      </div>
+
+      <div class="endpoint">
+        <h3>Bookings</h3>
+        <p><code>GET /api/bookings</code> - Get user bookings</p>
+        <p><code>POST /api/bookings</code> - Create a new booking</p>
+        <p><code>GET /api/bookings/:id</code> - Get booking details</p>
+        <p><code>PATCH /api/bookings/:id/cancel</code> - Cancel a booking</p>
+      </div>
+
+      <div class="endpoint">
+        <h3>Notifications</h3>
+        <p><code>GET /api/notifications</code> - Get user notifications</p>
+        <p>
+          <code>POST /api/notifications/register-device</code> - Register device
+          for push notifications
+        </p>
+      </div>
+
+      <h2>Health Check</h2>
+      <p>Check API status:</p>
+      <p><code>GET /api/health</code></p>
+    </div>
+
+    <footer>
+      <p>DashStream API &copy; <span id="current-year"></span></p>
+      <script>
+        document.getElementById("current-year").textContent =
+          new Date().getFullYear();
+      </script>
+    </footer>
+  </body>
+</html>
