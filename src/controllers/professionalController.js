@@ -11,22 +11,24 @@ export const getProfessionalJobs = async (req, res, next) => {
 
     const bookings = await Booking.find({ professional: professionalId })
       .populate('customer', 'name profileImage')
-      .populate('service', 'title price')
       .sort('-createdAt');
 
-    const jobs = bookings.map(booking => ({
-      id: booking._id,
-      customerName: booking.customer.name,
-      customerImage: booking.customer.profileImage?.url || '',
-      date: booking.scheduledDate,
-      time: booking.scheduledTime,
-      address: `${booking.location.address.address}, ${booking.location.address.city}, ${booking.location.address.pincode}`,
-      totalAmount: booking.totalAmount,
-      status: booking.status,
-      paymentStatus: booking.paymentStatus,
-      serviceName: booking.services?.map(s => s.title).join(', ') || 'Unknown Service',
-      createdAt: booking.createdAt
-    }));
+    const jobs = bookings.map(booking => {
+      const address = booking.location?.address ? `${booking.location.address.address}, ${booking.location.address.city}, ${booking.location.address.pincode}` : 'Address not available';
+      return {
+        id: booking._id,
+        customerName: booking.customer ? booking.customer.name : 'N/A',
+        customerImage: booking.customer?.profileImage?.url || '',
+        date: booking.scheduledDate,
+        time: booking.scheduledTime,
+        address,
+        totalAmount: booking.totalAmount,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        serviceName: booking.services?.map(s => s.title).join(', ') || 'Unknown Service',
+        createdAt: booking.createdAt
+      };
+    });
 
     res.sendSuccess(jobs, 'Professional jobs retrieved successfully');
   } catch (error) {
