@@ -1,4 +1,4 @@
-
+import axios from 'axios';
 import DeviceToken from '../models/deviceTokenModel.js';
 import Notification from '../models/notificationModel.js';
 import FirebaseService from './FirebaseService.js';
@@ -21,6 +21,17 @@ export const sendPushNotification = async (notificationData, userId) => {
       return notification;
     }
 
+    const expoTokens = [];
+    const fcmTokens = [];
+
+    deviceTokens.forEach(dt => {
+      if (dt.token.startsWith('ExponentPushToken[')) {
+        expoTokens.push(dt.token);
+      } else {
+        fcmTokens.push(dt.token);
+      }
+    });
+
     // Format notification payload for push service
     const pushPayload = {
       notification: {
@@ -37,38 +48,63 @@ export const sendPushNotification = async (notificationData, userId) => {
       }
     };
 
-    // Send to each device token using Firebase Cloud Messaging
-    console.log('Push notification payload:', pushPayload);
-    console.log(`Sending to ${deviceTokens.length} devices`);
-
-    // Send notification using FirebaseService
-    if (deviceTokens.length > 0) {
+    // Send to FCM tokens
+    if (fcmTokens.length > 0) {
+      console.log('Push notification payload (FCM):', pushPayload);
+      console.log(`Sending to ${fcmTokens.length} FCM devices`);
       try {
-        const tokens = deviceTokens.map(dt => dt.token);
-        const response = await FirebaseService.sendMulticastNotification(tokens, {
+        const response = await FirebaseService.sendMulticastNotification(fcmTokens, {
           title: pushPayload.notification.title,
           body: pushPayload.notification.body,
           data: pushPayload.data
         });
         
-        console.log(`Successfully sent message: ${response.successCount} successful, ${response.failureCount} failed`);
+        console.log(`Successfully sent message to FCM: ${response.successCount} successful, ${response.failureCount} failed`);
         
-        // Handle failures if needed
         if (response.failureCount > 0) {
           const failedTokens = [];
           response.responses.forEach((resp, idx) => {
             if (!resp.success) {
-              failedTokens.push(deviceTokens[idx].token);
-              console.error('Error sending to token:', resp.error);
+              failedTokens.push(fcmTokens[idx]);
+              console.error('Error sending to FCM token:', resp.error);
             }
           });
-          
-          // You might want to handle failed tokens (e.g., remove invalid ones)
-          console.log('Failed tokens:', failedTokens);
+          console.log('Failed FCM tokens:', failedTokens);
         }
       } catch (fcmError) {
         console.error('Firebase messaging error:', fcmError);
-        // Continue execution even if FCM fails
+      }
+    }
+
+    // Send to Expo tokens
+    if (expoTokens.length > 0) {
+      console.log('Push notification payload (Expo):', pushPayload);
+      console.log(`Sending to ${expoTokens.length} Expo devices`);
+      const expoMessages = expoTokens.map(token => ({
+        to: token,
+        sound: 'default',
+        title: notificationData.title,
+        body: notificationData.message,
+        data: {
+          notificationId: notification._id.toString(),
+          type: notificationData.type,
+          actionType: notificationData.actionType || 'none',
+          ...(notificationData.actionParams || {}),
+          ...(notificationData.meta || {})
+        },
+      }));
+
+      try {
+        const response = await axios.post('https://exp.host/--/api/v2/push/send', expoMessages, {
+          headers: {
+            'Accept': 'application/json',
+            'Accept-encoding': 'gzip, deflate',
+            'Content-Type': 'application/json',
+          },
+        });
+        console.log('Expo push notification response:', response.data);
+      } catch (error) {
+        console.error('Error sending Expo push notification:', error.response ? error.response.data : error.message);
       }
     }
 
