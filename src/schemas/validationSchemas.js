@@ -32,7 +32,7 @@ export const authSchemas = {
       })
   }),
 
-  // Removed Firebase Phone Authentication schemas as we've migrated to Twilio
+
 };
 
 // Payment validation schemas

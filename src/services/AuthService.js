@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import { asyncHandler, AppError } from '../middleware/errorMiddleware.js';
-import { twilioSendOtp, twilioVerifyOtp } from "../utils/twilioVerify.js";
+import { firebaseVerifyIdToken } from "../utils/firebaseAuth.js";
 
 
 class AuthService {
@@ -47,88 +47,33 @@ class AuthService {
     });
   }
 
-  //Send OTP via Twilio
+  static verifyIdToken = asyncHandler(async (idToken, res, next) => {
 
-  static sendOtp = asyncHandler(async (req, res, next) => {
-    const { phone } = req.body;
-
-    // 1) Validate phone number
-    if (!phone) {
-      return next(new AppError("Phone number is required", 400));
-    }
-    
-    // Allow both formats: with or without country code for better compatibility with React Native app
-    const phoneRegex = /^(\+[1-9]\d{10,14}|[0-9]{10})$/;
-    if (!phoneRegex.test(phone)) {
-      return next(new AppError("Invalid phone number format. Please provide a valid phone number", 400));
-    }
-    
-    // Format phone number if needed
-    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`; // Default to India code if not provided
-    
-    // Check if user exists, create if not
-    let user = await User.findOne({ phone: formattedPhone });
-    if (!user) {
-      user = await User.create({
-        phone: formattedPhone,
-        profileComplete: false 
-      });
-    }
-    
-    try {
-      const twilioResponse = await twilioSendOtp(formattedPhone);
-      
-      if (!twilioResponse || twilioResponse.status !== "pending") {
-        throw new Error("Failed to send OTP. Please try again.");
-      }
-
-      res.status(200).json({
-        status: "success",
-        message: "OTP sent successfully.",
-        phone: formattedPhone
-      });
-
-    } catch (error) {
-      console.error("Error in sendOtp:", error);
-      return next(new AppError("Could not send OTP. Please check the phone number and try again later.", 500));
-    }
-  });
-
-  //Verify OTP sent via Twilio
-
-  static verifyOtp = asyncHandler(async (req, res, next) => {
-    const { phone, otp } = req.body;
-
-    if (!phone || !otp) {
-      return next(new AppError("Please provide a phone number and OTP.", 400));
-    }
-    
-    // Format phone number if needed
-    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`; // Default to India code if not provided
-
-    const user = await User.findOne({ phone: formattedPhone });
-    
-    if (!user) {
-      return next(new AppError("User not found with this phone number.", 404));
+    if (!idToken) {
+      return next(new AppError("Please provide an ID token.", 400));
     }
 
     try {
-      const twilioResponse = await twilioVerifyOtp(formattedPhone, otp);
-      
-      if (!twilioResponse || twilioResponse.status !== "approved") {
-        return next(new AppError("Invalid OTP. Please try again.", 400));
+      const decodedToken = await firebaseVerifyIdToken(idToken);
+      const { phone_number } = decodedToken;
+
+      let user = await User.findOne({ phone: phone_number });
+
+      if (!user) {
+        user = await User.create({
+          phone: phone_number,
+          isPhoneVerified: true,
+          profileComplete: false,
+        });
+      } else {
+        user.isPhoneVerified = true;
+        await user.save({ validateBeforeSave: false });
       }
 
-      // Mark phone as verified
-      user.isPhoneVerified = true;
-      await user.save({ validateBeforeSave: false });
-
-      // Create and send token
       AuthService.createSendToken(user, 200, res);
-
     } catch (error) {
-      console.error("Error in verifyOtp:", error);
-      return next(new AppError("Could not verify OTP. Please try again.", 500));
+      console.error("Error in verifyIdToken:", error);
+      return next(new AppError("Could not verify ID token. Please try again.", 500));
     }
   });
   

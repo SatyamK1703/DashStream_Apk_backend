@@ -1,15 +1,13 @@
 import express from 'express';
 import {
-  sendOtp,
-  verifyOtp
+  firebaseLogin
 } from '../controllers/authController.js';
 import { protect, logout, refreshToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Public routes
-router.post('/send-otp', sendOtp);
-router.post('/verify-otp', verifyOtp);
+router.post('/firebase-login', firebaseLogin);
 // Refresh access token using refresh token
 router.post('/refresh-token', refreshToken);
 

@@ -17,9 +17,7 @@ export const validateProductionEnv = () => {
     "JWT_SECRET",
     "JWT_EXPIRES_IN",
     "JWT_COOKIE_EXPIRES_IN",
-    "TWILIO_ACCOUNT_SID",
-    "TWILIO_AUTH_TOKEN",
-    "TWILIO_SERVICE_SID",
+
     "CLOUDINARY_CLOUD_NAME",
     "CLOUDINARY_API_KEY",
     "CLOUDINARY_API_SECRET",
@@ -119,7 +117,7 @@ export const productionSecurityConfig = {
         "'self'",
         "https://api.cloudinary.com",
         "https://api.razorpay.com",
-        "https://*.twilio.com",
+
         "https://*.googleapis.com",
       ],
       objectSrc: ["'none'"],
