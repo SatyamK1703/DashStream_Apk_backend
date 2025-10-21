@@ -1,6 +1,6 @@
 import express from 'express';
 import * as serviceAreaController from '../controllers/serviceAreaController.js';
-import { protect, restrictTo } from '../controllers/authController.js';
+import { protect, restrictTo } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -10,16 +10,16 @@ router
   .route('/')
   .get(serviceAreaController.getAllServiceAreas)
   .post(
-    authController.protect,
-    authController.restrictTo('admin'),
+    protect,
+    restrictTo('admin'),
     serviceAreaController.createServiceArea
   );
 
 router
   .route('/:id')
   .delete(
-    authController.protect,
-    authController.restrictTo('admin'),
+    protect,
+    restrictTo('admin'),
     serviceAreaController.deleteServiceArea
   );
 
