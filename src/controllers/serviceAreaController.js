@@ -1,6 +1,6 @@
 import ServiceArea from '../models/serviceAreaModel.js';
 import catchAsync from '../utils/catchAsync.js';
-import AppError from '../utils/appError.js';
+import { AppError } from '../utils/appError.js';
 
 export const getAllServiceAreas = catchAsync(async (req, res, next) => {
   const serviceAreas = await ServiceArea.find();
