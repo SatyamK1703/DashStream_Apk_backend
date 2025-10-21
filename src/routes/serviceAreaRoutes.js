@@ -1,6 +1,6 @@
-const express = require('express');
-const serviceAreaController = require('../controllers/serviceAreaController');
-const authController = require('../controllers/authController');
+import express from 'express';
+import * as serviceAreaController from '../controllers/serviceAreaController.js';
+import * as authController from '../controllers/authController.js';
 
 const router = express.Router();
 
@@ -23,4 +23,4 @@ router
     serviceAreaController.deleteServiceArea
   );
 
-module.exports = router;
+export default router;

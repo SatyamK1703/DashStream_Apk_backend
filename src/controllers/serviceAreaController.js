@@ -1,8 +1,8 @@
-const ServiceArea = require('../models/serviceAreaModel');
-const catchAsync = require('../utils/catchAsync');
-const AppError = require('../utils/appError');
+import ServiceArea from '../models/serviceAreaModel.js';
+import catchAsync from '../utils/catchAsync.js';
+import AppError from '../utils/appError.js';
 
-exports.getAllServiceAreas = catchAsync(async (req, res, next) => {
+export const getAllServiceAreas = catchAsync(async (req, res, next) => {
   const serviceAreas = await ServiceArea.find();
   res.status(200).json({
     status: 'success',
@@ -13,7 +13,7 @@ exports.getAllServiceAreas = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.createServiceArea = catchAsync(async (req, res, next) => {
+export const createServiceArea = catchAsync(async (req, res, next) => {
   const { pincode } = req.body;
   if (!pincode) {
     return next(new AppError('Pincode is required', 400));
@@ -27,7 +27,7 @@ exports.createServiceArea = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteServiceArea = catchAsync(async (req, res, next) => {
+export const deleteServiceArea = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const serviceArea = await ServiceArea.findByIdAndDelete(id);
   if (!serviceArea) {
@@ -39,7 +39,7 @@ exports.deleteServiceArea = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.checkServiceAvailability = catchAsync(async (req, res, next) => {
+export const checkServiceAvailability = catchAsync(async (req, res, next) => {
     const { pincode } = req.query;
     if (!pincode) {
         return next(new AppError('Pincode is required to check service availability.', 400));

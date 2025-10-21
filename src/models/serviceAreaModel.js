@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const serviceAreaSchema = new mongoose.Schema({
   pincode: {
@@ -16,4 +16,4 @@ const serviceAreaSchema = new mongoose.Schema({
 
 const ServiceArea = mongoose.model('ServiceArea', serviceAreaSchema);
 
-module.exports = ServiceArea;
+export default ServiceArea;
