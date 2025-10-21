@@ -1,6 +1,6 @@
 import express from 'express';
 import * as serviceAreaController from '../controllers/serviceAreaController.js';
-import * as authController from '../controllers/authController.js';
+import { protect, restrictTo } from '../controllers/authController.js';
 
 const router = express.Router();
 

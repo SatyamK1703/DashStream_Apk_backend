@@ -341,13 +341,4 @@ export const logout = (req, res, next) => {
   });
 };
 
-export default {
-  protect,
-  restrictTo,
-  checkResourceOwnership,
-  optionalAuth,
-  refreshToken,
-  createSendToken,
-  signToken,
-  logout,
-};
+
