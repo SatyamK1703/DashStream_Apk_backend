@@ -51,13 +51,13 @@ export const validateProductionEnv = () => {
 export const productionRateLimiting = {
   // General API rate limiting
   general: rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 5 * 60 * 1000, // 15 minutes
     max: 100, // 100 requests per window
     message: {
       status: "error",
       message: "Too many requests from this IP, please try again later.",
       statusCode: 429,
-      retryAfter: "15 minutes",
+      retryAfter: "5 minutes",
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -160,7 +160,8 @@ export const productionCorsConfig = {
         (allowedOrigin) =>
           origin.startsWith(allowedOrigin) ||
           origin.includes("expo") ||
-          (process.env.NODE_ENV !== "production" && origin.includes("localhost"))
+          (process.env.NODE_ENV !== "production" &&
+            origin.includes("localhost"))
       )
     ) {
       callback(null, true);
