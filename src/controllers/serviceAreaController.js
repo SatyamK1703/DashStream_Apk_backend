@@ -14,11 +14,11 @@ export const getAllServiceAreas = catchAsync(async (req, res, next) => {
 });
 
 export const createServiceArea = catchAsync(async (req, res, next) => {
-  const { pincode } = req.body;
-  if (!pincode) {
-    return next(new AppError('Pincode is required', 400));
+  const { pincode, name } = req.body;
+  if (!pincode || !name) {
+    return next(new AppError('Pincode and name are required', 400));
   }
-  const newServiceArea = await ServiceArea.create({ pincode });
+  const newServiceArea = await ServiceArea.create({ pincode, name });
   res.status(201).json({
     status: 'success',
     data: {

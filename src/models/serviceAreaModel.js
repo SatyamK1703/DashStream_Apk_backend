@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 
 const serviceAreaSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Service area name is required'],
+    trim: true,
+    unique: true,
+  },
   pincode: {
     type: String,
     required: true,
