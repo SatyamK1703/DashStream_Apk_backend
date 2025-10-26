@@ -11,6 +11,7 @@ import {
   getMyNotifications,
   getPreferences,
   updatePreferences,
+  createAreaRequestNotification,
 } from "../controllers/notificationController.js";
 import {
   registerDeviceToken,
@@ -37,6 +38,9 @@ router.patch("/preferences", updatePreferences);
 
 router.patch("/:id/read", markAsRead);
 router.delete("/:id", deleteNotification);
+
+// Route for customer to request a new service area
+router.post("/area-request", createAreaRequestNotification);
 
 // Device token routes
 router.post("/register-device", registerDeviceToken);

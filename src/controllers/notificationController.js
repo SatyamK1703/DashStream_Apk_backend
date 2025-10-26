@@ -1,7 +1,7 @@
 import { asyncHandler } from "../middleware/errorMiddleware.js";
 import { AppError } from "../utils/appError.js";
 import Notification from "../models/notificationModel.js";
-import { sendPushNotification } from "../services/notificationService.js";
+import { sendPushNotification, sendNotificationToAdmins } from "../services/notificationService.js";
 
 // GET /api/notifications/preferences
 export const getPreferences = asyncHandler(async (req, res, next) => {
@@ -262,4 +262,23 @@ export const getAllNotifications = asyncHandler(async (req, res, next) => {
     { notifications, count: notifications.length },
     "All notifications retrieved successfully"
   );
+});
+
+export const createAreaRequestNotification = asyncHandler(async (req, res, next) => {
+  const { pincode } = req.body;
+
+  if (!pincode) {
+    return next(new AppError('Pincode is required', 400));
+  }
+
+  const message = `A customer has requested service in a new area with pincode: ${pincode}.`;
+
+  await sendNotificationToAdmins({
+    title: 'New Service Area Request',
+    message,
+    type: 'AREA_REQUEST',
+    data: { pincode },
+  });
+
+  res.sendSuccess({ pincode }, "Admin notification sent for new area request.");
 });

@@ -133,6 +133,21 @@ export const sendBulkNotifications = async (notificationData, userIds) => {
   }
 };
 
+export const sendNotificationToAdmins = async (notificationData) => {
+  try {
+    const admins = await User.find({ role: 'admin' }).select('_id');
+    const adminIds = admins.map(admin => admin._id);
+
+    if (adminIds.length > 0) {
+      return await sendBulkNotifications(notificationData, adminIds);
+    }
+  } catch (error) {
+    console.error('Error sending notification to admins:', error);
+    // We don't throw here because this is often a background task
+    // and shouldn't fail the primary user-facing operation.
+  }
+};
+
 import User from '../models/userModel.js';
 
 //Send a booking notification
