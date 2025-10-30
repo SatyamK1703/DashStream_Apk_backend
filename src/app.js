@@ -33,6 +33,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import addressRoutes from "./routes/addressRoutes.js";
+import quickFixRoutes from "./routes/quickFixes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import serviceAreaRoutes from "./routes/serviceAreaRoutes.js";
 
@@ -145,6 +146,7 @@ app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/quick-fixes", quickFixRoutes);
 app.use("/api/service-areas", serviceAreaRoutes);
 
 // Health check route
