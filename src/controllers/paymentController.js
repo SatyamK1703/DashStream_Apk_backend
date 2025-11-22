@@ -270,7 +270,7 @@ export const processWebhookEvent = async (event) => {
     const createdAt = event?.created_at;
 
     if (!eventId || !eventType) {
-      throw new Error("Invalid webhook event");
+      throw new Error(`Invalid webhook event: missing required fields 'id' and/or 'event'. Received: ${JSON.stringify(event).substring(0, 200)}`);
     }
 
     // Security: Check if webhook event is not too old (prevent replay attacks)
@@ -279,9 +279,10 @@ export const processWebhookEvent = async (event) => {
       const now = new Date();
       const timeDiff = now - eventTime;
       const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      const maxFuture = 5 * 60 * 1000; // 5 minutes in future (allow for clock skew)
 
-      if (timeDiff > maxAge || timeDiff < 0) {
-        console.warn(`Webhook event ${eventId} is too old or has future timestamp`);
+      if (timeDiff > maxAge || timeDiff < -maxFuture) {
+        console.warn(`Webhook event ${eventId} is too old or has future timestamp: ${timeDiff}ms`);
         return null;
       }
     }
@@ -453,7 +454,7 @@ export const createPaymentLinkOrder = asyncHandler(async (req, res) => {
 });
 
 export const verifyPayment = asyncHandler(async (req, res) => {
-  const { orderId, paymentId, signature } = req.body || {};
+  const { orderId, paymentId, signature, bookingId } = req.body || {};
   if (!orderId || !paymentId || !signature) {
     throw new AppError("Missing orderId, paymentId or signature", 400);
   }
@@ -461,7 +462,18 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   const valid = await verifyPaymentSignature(orderId, paymentId, signature);
   if (!valid) throw new AppError("Invalid payment signature", 400);
 
-  res.status(200).json({ status: "success", message: "Payment verified" });
+  // Fetch updated payment and booking data
+  const payment = await Payment.findOne({ razorpayOrderId: orderId });
+  const booking = await Booking.findById(payment.bookingId).populate('customer', 'name email phone');
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      verified: true,
+      payment,
+      booking
+    }
+  });
 });
 
 // Manual payment verification fallback
