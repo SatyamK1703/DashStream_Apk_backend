@@ -1,6 +1,6 @@
 import express from "express";
 import * as paymentController from "../controllers/paymentController.js";
-import { protect } from "../middleware/auth.js";
+import { protect, restrictTo } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validationMiddleware.js";
 import { paymentSchemas } from "../schemas/validationSchemas.js";
 
@@ -53,6 +53,6 @@ router.get("/user", paymentController.getUserPayments);
 router.get("/:id", paymentController.getPayment);
 
 // Initiate refund (admin only)
-router.post("/:id/refund", paymentController.initiateRefund);
+router.post("/:id/refund", restrictTo('admin'), paymentController.initiateRefund);
 
 export default router;

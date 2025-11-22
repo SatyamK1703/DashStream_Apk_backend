@@ -30,6 +30,26 @@ export const createOrder = async (bookingId, userId, amount, notes = {}) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) throw new AppError("Booking not found", 404);
 
+    // Validate booking ownership
+    if (booking.customer.toString() !== userId.toString()) {
+      throw new AppError("You can only create payments for your own bookings", 403);
+    }
+
+    // Validate payment amount matches booking total
+    if (Math.abs(Number(amount) - Number(booking.totalAmount)) > 0.01) {
+      throw new AppError(`Payment amount must match booking total of ₹${booking.totalAmount}`, 400);
+    }
+
+    // Check for existing payments on this booking
+    const existingPayment = await Payment.findOne({
+      bookingId,
+      status: { $in: ['created', 'pending', 'authorized', 'captured'] }
+    });
+
+    if (existingPayment) {
+      throw new AppError("A payment already exists for this booking", 409);
+    }
+
     const receiptId = `receipt_${Date.now()}`;
     const paise = Math.round(Number(amount) * 100);
     if (!Number.isFinite(paise) || paise <= 0)
@@ -195,6 +215,11 @@ export const verifyPaymentSignature = async (orderId, paymentId, signature) => {
     const isValid = safeCompare(generatedSignature, signature);
 
     if (isValid) {
+      // Idempotency check - if already captured, just return success
+      if (payment.status === "captured") {
+        return true;
+      }
+
       payment.razorpayPaymentId = paymentId;
       payment.razorpaySignature = signature;
       payment.status = "captured";
@@ -242,9 +267,23 @@ export const processWebhookEvent = async (event) => {
     const eventId = event?.id;
     const eventType = event?.event;
     const payload = event?.payload ?? {};
+    const createdAt = event?.created_at;
 
     if (!eventId || !eventType) {
       throw new Error("Invalid webhook event");
+    }
+
+    // Security: Check if webhook event is not too old (prevent replay attacks)
+    if (createdAt) {
+      const eventTime = new Date(createdAt);
+      const now = new Date();
+      const timeDiff = now - eventTime;
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+      if (timeDiff > maxAge || timeDiff < 0) {
+        console.warn(`Webhook event ${eventId} is too old or has future timestamp`);
+        return null;
+      }
     }
 
     // Try to find order/payment id from payload
@@ -432,6 +471,16 @@ export const manualVerifyPayment = asyncHandler(async (req, res) => {
     throw new AppError("Missing bookingId", 400);
   }
 
+  // Validate booking ownership
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new AppError("Booking not found", 404);
+  }
+
+  if (req.user.role !== 'admin' && booking.customer.toString() !== req.user.id.toString()) {
+    throw new AppError("You can only verify payments for your own bookings", 403);
+  }
+
   const payment = await Payment.findOne({ bookingId });
   if (!payment) {
     throw new AppError("Payment record not found", 404);
@@ -471,6 +520,12 @@ export const getUserPayments = asyncHandler(async (req, res) => {
 export const getPayment = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id);
   if (!payment) throw new AppError("Payment not found", 404);
+
+  // Check ownership - allow admins to access any payment
+  if (req.user.role !== 'admin' && payment.userId.toString() !== req.user.id.toString()) {
+    throw new AppError("You can only access your own payment details", 403);
+  }
+
   res.status(200).json({ status: "success", payment });
 });
 
@@ -530,7 +585,12 @@ export const collectCODPayment = asyncHandler(async (req, res) => {
   if (!booking.professional || booking.professional.toString() !== req.user.id) {
     throw new AppError("You are not authorized to collect payment for this booking", 403);
   }
-  
+
+  // Validate booking status allows COD collection
+  if (!['completed', 'in_progress'].includes(booking.status)) {
+    throw new AppError("COD can only be collected for active or completed bookings", 400);
+  }
+
   // Update booking COD status
   booking.codStatus = 'collected';
   booking.codCollectedAt = new Date();

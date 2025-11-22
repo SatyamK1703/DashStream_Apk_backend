@@ -29,9 +29,9 @@ describe("Payment API_ENDPOINTS", () => {
 
     // Create test service
     testService = await Service.create({
-      name: "Test Service",
+      title: "Test Service",
       description: "Test service for payments",
-      category: "plumbing",
+      category: "car wash",
       price: 100,
       duration: 60,
       isActive: true,

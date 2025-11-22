@@ -248,6 +248,21 @@ export const initiateRefund = async (paymentId, amount = null, notes = {}) => {
     // If amount not specified, refund full amount
     const refundAmount = amount ? amount * 100 : undefined;
 
+    // Validate refund amount doesn't exceed available amount
+    const totalRefunded = payment.refundAmount || 0;
+    const availableAmount = payment.amount * 100 - totalRefunded;
+
+    if (refundAmount && refundAmount > availableAmount) {
+      throw new AppError(
+        `Refund amount ₹${amount} exceeds available amount ₹${availableAmount / 100}`,
+        400
+      );
+    }
+
+    if (!refundAmount && availableAmount <= 0) {
+      throw new AppError("No amount available for refund", 400);
+    }
+
     // Create refund in Razorpay
     const refundOptions = {
       payment_id: payment.razorpayPaymentId,
