@@ -269,10 +269,23 @@ export const processWebhookEvent = async (event) => {
         razorpayPaymentId: paymentEntity.id,
       });
 
+    // Additional fallback: try to find by bookingId from notes
+    if (!paymentRecord && paymentEntity?.notes?.bookingId) {
+      paymentRecord = await Payment.findOne({ 
+        bookingId: paymentEntity.notes.bookingId 
+      });
+    }
+
     if (!paymentRecord) {
-      // If no record, log and return gracefully; webhook may arrive before DB record is created
-      console.warn(
-        `Payment record not found for order: ${orderId}. Webhook ${eventId} will be skipped.`
+      // If no record, log detailed info and return gracefully
+      console.error(
+        `Payment record not found for webhook ${eventId}:`, {
+          orderId,
+          paymentId: paymentEntity?.id,
+          bookingIdFromNotes: paymentEntity?.notes?.bookingId,
+          eventType,
+          payload: JSON.stringify(payload).substring(0, 500)
+        }
       );
       return null;
     }
@@ -349,15 +362,34 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     req.headers["x-razorpay-signature".toLowerCase()];
   const rawBody = req.rawBody || (req.body ? JSON.stringify(req.body) : "");
 
+  console.log("Webhook received:", {
+    signature: signature ? "present" : "missing",
+    bodyLength: rawBody.length,
+    eventType: req.body?.event,
+    eventId: req.body?.id
+  });
+
   const verified = verifyWebhookSignature(signature, rawBody);
   if (!verified) {
+    console.error("Webhook signature verification failed:", {
+      signaturePresent: !!signature,
+      bodyLength: rawBody.length,
+      webhookSecretConfigured: !!getWebhookSecret()
+    });
     return res
       .status(400)
       .json({ status: "error", message: "Invalid webhook signature" });
   }
 
   const event = req.body;
-  await processWebhookEvent(event);
+  const result = await processWebhookEvent(event);
+  
+  console.log("Webhook processed:", {
+    eventId: event?.id,
+    eventType: event?.event,
+    processed: !!result
+  });
+  
   return res.status(200).json({ status: "success" });
 });
 
@@ -391,6 +423,40 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   if (!valid) throw new AppError("Invalid payment signature", 400);
 
   res.status(200).json({ status: "success", message: "Payment verified" });
+});
+
+// Manual payment verification fallback
+export const manualVerifyPayment = asyncHandler(async (req, res) => {
+  const { bookingId } = req.body || {};
+  if (!bookingId) {
+    throw new AppError("Missing bookingId", 400);
+  }
+
+  const payment = await Payment.findOne({ bookingId });
+  if (!payment) {
+    throw new AppError("Payment record not found", 404);
+  }
+
+  // If payment is already captured, update booking
+  if (payment.status === 'captured') {
+    await Booking.findByIdAndUpdate(bookingId, {
+      paymentStatus: "paid",
+      paymentId: payment._id,
+    });
+    
+    res.status(200).json({ 
+      status: "success", 
+      message: "Payment status synchronized",
+      paymentStatus: payment.status,
+      bookingPaymentStatus: "paid"
+    });
+  } else {
+    res.status(200).json({ 
+      status: "info", 
+      message: "Payment not yet captured",
+      paymentStatus: payment.status
+    });
+  }
 });
 
 export const getUserPayments = asyncHandler(async (req, res) => {

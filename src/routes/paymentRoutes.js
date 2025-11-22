@@ -43,6 +43,9 @@ router.post(
   paymentController.verifyPayment
 );
 
+// Manual payment verification fallback
+router.post("/manual-verify", paymentController.manualVerifyPayment);
+
 // Get user payments
 router.get("/user", paymentController.getUserPayments);
 
