@@ -264,7 +264,7 @@ export const verifyWebhookSignature = (signature, body) => {
 export const processWebhookEvent = async (event) => {
   try {
     // Basic payload normalization
-    const eventId = event?.id;
+    const eventId = event?.id || `${event?.account_id}_${event?.created_at}`;
     const eventType = event?.event;
     const payload = event?.payload ?? {};
     const createdAt = event?.created_at;
