@@ -320,7 +320,20 @@ export const processWebhookEvent = async (event) => {
     // Check for Membership record if no Payment record found
     let membershipRecord = null;
     if (!paymentRecord && orderId) {
+      // Try to find membership with the orderId as-is
       membershipRecord = await Membership.findOne({ orderId });
+
+      // If not found and orderId starts with "order_", try without prefix
+      if (!membershipRecord && orderId.startsWith('order_')) {
+        const orderIdWithoutPrefix = orderId.substring(6); // Remove "order_" prefix
+        membershipRecord = await Membership.findOne({ orderId: orderIdWithoutPrefix });
+      }
+
+      // If not found and orderId doesn't start with "order_", try with prefix
+      if (!membershipRecord && !orderId.startsWith('order_')) {
+        const orderIdWithPrefix = `order_${orderId}`;
+        membershipRecord = await Membership.findOne({ orderId: orderIdWithPrefix });
+      }
     }
 
     if (!paymentRecord && !membershipRecord) {
@@ -337,6 +350,11 @@ export const processWebhookEvent = async (event) => {
       return null;
     }
 
+    // Log what we found
+    if (membershipRecord) {
+      console.log(`Found membership record for orderId: ${orderId}, membershipId: ${membershipRecord._id}`);
+    }
+
     // Idempotency: skip if we've already processed this event id
     let alreadyProcessed = false;
     if (paymentRecord) {
@@ -345,9 +363,13 @@ export const processWebhookEvent = async (event) => {
       );
     } else if (membershipRecord) {
       // For memberships, check if already active (simple idempotency)
-      alreadyProcessed = membershipRecord.status === 'active';
+      // For payment.captured events, if already active, skip
+      alreadyProcessed = membershipRecord.status === 'active' && eventType === 'payment.captured';
     }
-    if (alreadyProcessed) return paymentRecord || membershipRecord;
+    if (alreadyProcessed) {
+      console.log(`Webhook event ${eventId} already processed for ${paymentRecord ? 'payment' : 'membership'} record`);
+      return paymentRecord || membershipRecord;
+    }
 
     // Update payment status based on event type
     if (paymentRecord) {
@@ -427,6 +449,7 @@ export const processWebhookEvent = async (event) => {
     if (membershipRecord) {
       // For memberships, we don't store webhook events in the model currently
       // but we could add this if needed for audit purposes
+      console.log(`Membership webhook processed: ${eventType} for membership ${membershipRecord._id}`);
       return membershipRecord;
     }
   } catch (error) {
