@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import QuickFix from '../models/QuickFix.js';
+import { AppError } from '../utils/appError.js';
 
 // @desc    Get all quick fixes
 // @route   GET /api/quick-fixes
@@ -43,8 +44,7 @@ const updateQuickFix = asyncHandler(async (req, res) => {
     const updatedQuickFix = await quickFix.save();
     res.json(updatedQuickFix);
   } else {
-    res.status(404);
-    throw new Error('Quick fix not found');
+    throw new AppError('Quick fix not found', 404);
   }
 });
 
@@ -58,8 +58,7 @@ const deleteQuickFix = asyncHandler(async (req, res) => {
     await QuickFix.deleteOne({ _id: req.params.id });
     res.json({ message: 'Quick fix removed' });
   } else {
-    res.status(404);
-    throw new Error('Quick fix not found');
+    throw new AppError('Quick fix not found', 404);
   }
 });
 

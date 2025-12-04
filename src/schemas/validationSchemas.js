@@ -579,11 +579,18 @@ export const notificationSchemas = {
 export const membershipSchemas = {
   purchaseMembership: Joi.object({
     planId: Joi.string()
-      .pattern(/^[0-9a-fA-F]{24}$/)
+      .valid('silver', 'gold', 'platinum')
       .required()
       .messages({
-        'string.pattern.base': 'Plan ID must be a valid MongoDB ObjectId',
+        'any.only': 'Plan ID must be one of: silver, gold, platinum',
         'any.required': 'Plan ID is required'
+      }),
+    amount: Joi.number()
+      .positive()
+      .required()
+      .messages({
+        'number.positive': 'Amount must be a positive number',
+        'any.required': 'Amount is required'
       }),
     autoRenew: Joi.boolean().optional()
   }),
