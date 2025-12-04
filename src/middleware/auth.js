@@ -256,4 +256,37 @@ export const logout = (req, res, next) => {
   });
 };
 
+/**
+ * Refresh access token using refresh token
+ */
+export const refreshToken = asyncHandler(async (req, res, next) => {
+  // Get refresh token from cookies or body
+  const { refreshToken: token } = req.cookies || req.body || {};
+
+  if (!token || token === "loggedout") {
+    return next(new AppError("No refresh token provided", 401));
+  }
+
+  try {
+    // Verify refresh token
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+
+    // Check if user still exists
+    const currentUser = await User.findById(decoded.id);
+    if (!currentUser) {
+      return next(new AppError("User no longer exists", 401));
+    }
+
+    // Check if user is active
+    if (currentUser.active === false) {
+      return next(new AppError("User account is deactivated", 401));
+    }
+
+    // Generate new tokens
+    createSendToken(currentUser, 200, res);
+  } catch (error) {
+    return next(new AppError("Invalid refresh token", 401));
+  }
+});
+
 
