@@ -275,7 +275,7 @@ export const processWebhookEvent = async (event) => {
 
     // Security: Check if webhook event is not too old (prevent replay attacks)
     if (createdAt) {
-      const eventTime = new Date(createdAt);
+      const eventTime = new Date(createdAt * 1000); // createdAt is in seconds, convert to milliseconds
       const now = new Date();
       const timeDiff = now - eventTime;
       const maxAge = 24 * 60 * 60 * 1000; // 24 hours
