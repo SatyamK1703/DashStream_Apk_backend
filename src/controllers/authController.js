@@ -12,7 +12,6 @@ import {
 } from "../utils/logging.js";
 
 export const sendOtp = asyncHandler(async (req, res, next) => {
-  const startTime = Date.now();
   const { phone } = req.body;
 
   req.logger.info("Starting OTP send process", {
@@ -46,54 +45,17 @@ export const sendOtp = asyncHandler(async (req, res, next) => {
   const formattedPhone = phone.startsWith("+") ? phone : `+91${phone}`; // Default to India code if not provided
 
   // Check if user exists, create if not
-  logDatabaseOperation(
-    "FIND",
-    "users",
-    { phone: formattedPhone.substring(0, 4) + "****" },
-    req.logger
-  );
   let user = await User.findOne({ phone: formattedPhone });
 
   if (!user) {
-    req.logger.info("Creating new user for OTP request");
-    logDatabaseOperation(
-      "CREATE",
-      "users",
-      { phone: formattedPhone.substring(0, 4) + "****" },
-      req.logger
-    );
     user = await User.create({
       phone: formattedPhone,
       profileComplete: false,
     });
-    logAuthEvent(
-      "USER_CREATED",
-      user._id,
-      { phone: formattedPhone.substring(0, 4) + "****" },
-      req.logger
-    );
-  } else {
-    logAuthEvent(
-      "EXISTING_USER_OTP_REQUEST",
-      user._id,
-      { phone: formattedPhone.substring(0, 4) + "****" },
-      req.logger
-    );
   }
 
   try {
-    const twilioStart = Date.now();
     const twilioResponse = await twilioSendOtp(formattedPhone);
-    const twilioDuration = Date.now() - twilioStart;
-
-    logExternalApiCall(
-      "Twilio",
-      "/verify/services",
-      "POST",
-      twilioDuration,
-      200,
-      req.logger
-    );
 
     if (!twilioResponse || twilioResponse.status !== "pending") {
       req.logger.error("Twilio OTP send failed", {
@@ -113,18 +75,9 @@ export const sendOtp = asyncHandler(async (req, res, next) => {
       req.logger
     );
 
-    logPerformance(
-      "sendOtp",
-      Date.now() - startTime,
-      { userId: user._id },
-      req.logger
-    );
 
-    res.status(200).json({
-      status: "success",
-      message: "OTP sent successfully.",
-      phone: formattedPhone,
-    });
+
+    res.sendSuccess({ phone: formattedPhone }, "OTP sent successfully.");
   } catch (error) {
     req.logger.error("Error in sendOtp controller", {
       error: error.message,

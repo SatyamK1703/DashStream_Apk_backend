@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       lowercase: true,
+      unique: true,
       sparse: true,
       validate: {
         validator: function (val) {
@@ -210,11 +211,16 @@ userSchema.pre('save', async function(next) {
 
 // Method to check if password is correct
 userSchema.methods.correctPassword = async function(candidatePassword) {
-  // Load password field which is not selected by default
-  const user = await User.findById(this._id).select('+password');
-  if (!user || !user.password) return false;
-  
-  return await bcrypt.compare(candidatePassword, user.password);
+  let password = this.password;
+
+  // If password not loaded, fetch it
+  if (!password) {
+    const user = await User.findById(this._id).select('+password');
+    if (!user || !user.password) return false;
+    password = user.password;
+  }
+
+  return await bcrypt.compare(candidatePassword, password);
 };
 
 const User = mongoose.model("User", userSchema);

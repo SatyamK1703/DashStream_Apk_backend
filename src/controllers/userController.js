@@ -16,12 +16,7 @@ const filterObj = (obj, ...allowedFields) => {
 export const createUser = asyncHandler(async (req, res, next) => {
   const newUser = await User.create(req.body);
 
-  res.status(201).json({
-    status: "success",
-    data: {
-      user: newUser,
-    },
-  });
+  res.sendSuccess({ user: newUser }, "User created successfully", 201);
 });
 
 //PATCH /api/users/:id
@@ -57,12 +52,7 @@ export const updateProfile = asyncHandler(async (req, res, next) => {
     runValidators: true,
   });
 
-  res.status(200).json({
-    status: "success",
-    data: {
-      user: updatedUser,
-    },
-  });
+  res.sendSuccess({ user: updatedUser }, "Profile updated successfully");
 });
 
 // Middleware for uploading profile image
@@ -88,12 +78,7 @@ export const updateProfileImage = asyncHandler(async (req, res, next) => {
 
     await user.save();
 
-    res.status(200).json({
-      status: "success",
-      data: {
-        user,
-      },
-    });
+    res.sendSuccess({ user }, "Profile image updated successfully");
   } catch (error) {
     console.error("Error updating profile image:", error);
     return next(
@@ -140,15 +125,7 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
   const totalUsers = await User.countDocuments(filter);
   const totalPages = Math.ceil(totalUsers / limitNum);
 
-  res.status(200).json({
-    status: "success",
-    results: totalUsers,
-    page: pageNum,
-    totalPages: totalPages,
-    data: {
-      users: users,
-    },
-  });
+  res.sendPaginated(users, pageNum, limitNum, totalUsers, "Users retrieved successfully");
 });
 
 // User is authenticated - fetch and return user data
@@ -156,15 +133,11 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
 export const getCurrentUser = asyncHandler(async (req, res, next) => {
   // If no authenticated user (optionalAuth), return guest response
   if (!req.user) {
-    return res.status(200).json({
-      status: "success",
-      message: "No user is currently logged in",
-      data: {
-        user: null,
-        isAuthenticated: false,
-        isGuest: true,
-      },
-    });
+    return res.sendSuccess({
+      user: null,
+      isAuthenticated: false,
+      isGuest: true,
+    }, "No user is currently logged in");
   }
 
   // Use the user from middleware (already fetched) to avoid extra DB call
@@ -184,15 +157,11 @@ export const getCurrentUser = asyncHandler(async (req, res, next) => {
     lastActive: user.lastActive,
   };
 
-  return res.status(200).json({
-    status: "success",
-    message: "Current user data retrieved successfully",
-    data: {
-      user: userData,
-      isAuthenticated: true,
-      isGuest: false,
-    },
-  });
+  return res.sendSuccess({
+    user: userData,
+    isAuthenticated: true,
+    isGuest: false,
+  }, "Current user data retrieved successfully");
 });
 
 //GET /api/users/:id
@@ -203,12 +172,7 @@ export const getUser = asyncHandler(async (req, res, next) => {
     return next(new AppError("No user found with that ID", 404));
   }
 
-  res.status(200).json({
-    status: "success",
-    data: {
-      user,
-    },
-  });
+  res.sendSuccess({ user }, "User retrieved successfully");
 });
 
 //DELETE /api/users/delete-account
@@ -284,10 +248,7 @@ export const getProfessionalDetails = asyncHandler(async (req, res, next) => {
     return next(new AppError("No professional found with that ID", 404));
   }
 
-  res.status(200).json({
-    status: "success",
-    data: { professional },
-  });
+  res.sendSuccess({ professional }, "Professional details retrieved successfully");
 });
 
 // PATCH /api/users/professional-profile
@@ -311,10 +272,7 @@ export const updateProfessionalProfile = asyncHandler(
       runValidators: true,
     });
 
-    res.status(200).json({
-      status: "success",
-      data: { user: updatedUser },
-    });
+    res.sendSuccess({ user: updatedUser }, "Professional profile updated successfully");
   }
 );
 
@@ -330,10 +288,7 @@ export const toggleAvailability = asyncHandler(async (req, res, next) => {
   user.isAvailable = !user.isAvailable;
   await user.save({ validateBeforeSave: false });
 
-  res.status(200).json({
-    status: "success",
-    data: { isAvailable: user.isAvailable },
-  });
+  res.sendSuccess({ isAvailable: user.isAvailable }, "Availability updated successfully");
 });
 
 // GET /api/users/stats
@@ -348,8 +303,5 @@ export const getUserStats = asyncHandler(async (req, res, next) => {
     },
   ]);
 
-  res.status(200).json({
-    status: "success",
-    data: { stats },
-  });
+  res.sendSuccess({ stats }, "User stats retrieved successfully");
 });
