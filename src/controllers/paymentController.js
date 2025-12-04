@@ -7,6 +7,7 @@ import razorpayInstance, {
 } from "../config/razorpay.js";
 import Payment from "../models/paymentModel.js";
 import Booking from "../models/bookingModel.js";
+import Membership from "../models/membershipModel.js";
 import { AppError } from "../utils/appError.js";
 import crypto from "crypto";
 import { asyncHandler } from "../middleware/errorMiddleware.js";
@@ -311,12 +312,18 @@ export const processWebhookEvent = async (event) => {
 
     // Additional fallback: try to find by bookingId from notes
     if (!paymentRecord && paymentEntity?.notes?.bookingId) {
-      paymentRecord = await Payment.findOne({ 
-        bookingId: paymentEntity.notes.bookingId 
+      paymentRecord = await Payment.findOne({
+        bookingId: paymentEntity.notes.bookingId
       });
     }
 
-    if (!paymentRecord) {
+    // Check for Membership record if no Payment record found
+    let membershipRecord = null;
+    if (!paymentRecord && orderId) {
+      membershipRecord = await Membership.findOne({ orderId });
+    }
+
+    if (!paymentRecord && !membershipRecord) {
       // If no record, log detailed info and return gracefully
       console.error(
         `Payment record not found for webhook ${eventId}:`, {
@@ -331,62 +338,97 @@ export const processWebhookEvent = async (event) => {
     }
 
     // Idempotency: skip if we've already processed this event id
-    const alreadyProcessed = (paymentRecord.webhookEvents || []).some(
-      (e) => e.eventId === eventId
-    );
-    if (alreadyProcessed) return paymentRecord;
+    let alreadyProcessed = false;
+    if (paymentRecord) {
+      alreadyProcessed = (paymentRecord.webhookEvents || []).some(
+        (e) => e.eventId === eventId
+      );
+    } else if (membershipRecord) {
+      // For memberships, check if already active (simple idempotency)
+      alreadyProcessed = membershipRecord.status === 'active';
+    }
+    if (alreadyProcessed) return paymentRecord || membershipRecord;
 
     // Update payment status based on event type
-    switch (eventType) {
-      case "payment.authorized":
-        paymentRecord.status = "authorized";
-        paymentRecord.paymentMethod = paymentEntity?.method;
-        paymentRecord.paymentDetails = paymentEntity;
-        break;
-      case "payment.captured":
-        paymentRecord.status = "captured";
-        paymentRecord.razorpayPaymentId =
-          paymentEntity?.id || paymentRecord.razorpayPaymentId;
-        paymentRecord.capturedAt = new Date();
-        await Booking.findByIdAndUpdate(paymentRecord.bookingId, {
-          paymentStatus: "paid",
-          paymentId: paymentRecord._id,
-        });
-        break;
-      case "payment.failed":
-        paymentRecord.status = "failed";
-        paymentRecord.errorCode = paymentEntity?.error_code;
-        paymentRecord.errorDescription = paymentEntity?.error_description;
-        break;
-      case "refund.created":
-        paymentRecord.refundId = payload.refund?.entity?.id;
-        paymentRecord.refundAmount =
-          (payload.refund?.entity?.amount ?? 0) / 100;
-        paymentRecord.refundStatus = "pending";
-        break;
-      case "refund.processed":
-        paymentRecord.refundStatus = "processed";
-        paymentRecord.status = "refunded";
-        break;
-      case "refund.failed":
-        paymentRecord.refundStatus = "failed";
-        break;
-      default:
-        // Keep record of unknown events for audit
-        break;
+    if (paymentRecord) {
+      switch (eventType) {
+        case "payment.authorized":
+          paymentRecord.status = "authorized";
+          paymentRecord.paymentMethod = paymentEntity?.method;
+          paymentRecord.paymentDetails = paymentEntity;
+          break;
+        case "payment.captured":
+          paymentRecord.status = "captured";
+          paymentRecord.razorpayPaymentId =
+            paymentEntity?.id || paymentRecord.razorpayPaymentId;
+          paymentRecord.capturedAt = new Date();
+          await Booking.findByIdAndUpdate(paymentRecord.bookingId, {
+            paymentStatus: "paid",
+            paymentId: paymentRecord._id,
+          });
+          break;
+        case "payment.failed":
+          paymentRecord.status = "failed";
+          paymentRecord.errorCode = paymentEntity?.error_code;
+          paymentRecord.errorDescription = paymentEntity?.error_description;
+          break;
+        case "refund.created":
+          paymentRecord.refundId = payload.refund?.entity?.id;
+          paymentRecord.refundAmount =
+            (payload.refund?.entity?.amount ?? 0) / 100;
+          paymentRecord.refundStatus = "pending";
+          break;
+        case "refund.processed":
+          paymentRecord.refundStatus = "processed";
+          paymentRecord.status = "refunded";
+          break;
+        case "refund.failed":
+          paymentRecord.refundStatus = "failed";
+          break;
+        default:
+          // Keep record of unknown events for audit
+          break;
+      }
+    }
+
+    // Handle membership activation
+    if (membershipRecord) {
+      switch (eventType) {
+        case "payment.captured":
+          membershipRecord.status = "active";
+          membershipRecord.paymentId = paymentEntity?.id;
+          membershipRecord.validUntil = new Date(new Date().setMonth(new Date().getMonth() + 1));
+          await membershipRecord.save();
+          console.log(`Membership activated for user ${membershipRecord.userId}, plan: ${membershipRecord.planId}`);
+          break;
+        case "payment.failed":
+          membershipRecord.status = "failed";
+          await membershipRecord.save();
+          break;
+        default:
+          // Keep record of other events for audit
+          break;
+      }
     }
 
     // Append webhook event with idempotent metadata
-    paymentRecord.webhookEvents = paymentRecord.webhookEvents || [];
-    paymentRecord.webhookEvents.push({
-      eventId,
-      eventType,
-      timestamp: new Date(),
-      payload: event,
-    });
+    if (paymentRecord) {
+      paymentRecord.webhookEvents = paymentRecord.webhookEvents || [];
+      paymentRecord.webhookEvents.push({
+        eventId,
+        eventType,
+        timestamp: new Date(),
+        payload: event,
+      });
+      await paymentRecord.save();
+      return paymentRecord;
+    }
 
-    await paymentRecord.save();
-    return paymentRecord;
+    if (membershipRecord) {
+      // For memberships, we don't store webhook events in the model currently
+      // but we could add this if needed for audit purposes
+      return membershipRecord;
+    }
   } catch (error) {
     console.error("Error processing webhook event:", error);
     throw new AppError(error.message || "Failed to process webhook event", 500);
