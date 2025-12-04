@@ -11,6 +11,7 @@ import Payment from "../models/paymentModel.js";
 import Address from "../models/addressModel.js";
 import Offer from "../models/offerModel.js";
 import Vehicle from "../models/vehicleModel.js";
+import Membership from "../models/membershipModel.js";
 
 /**
  * Index configuration for each model
@@ -176,6 +177,22 @@ const INDEX_CONFIGS = {
     { fields: { owner: 1, isDefault: 1 }, options: { background: true } },
     { fields: { owner: 1, type: 1 }, options: { background: true } },
   ],
+
+  Membership: [
+    // User-specific queries
+    { fields: { userId: 1, status: 1 }, options: { background: true } },
+    { fields: { userId: 1, createdAt: -1 }, options: { background: true } },
+
+    // Plan-based queries
+    { fields: { planId: 1, status: 1 }, options: { background: true } },
+
+    // Order-based queries for webhooks
+    { fields: { orderId: 1 }, options: { unique: true, sparse: true, background: true } },
+
+    // Status and date queries
+    { fields: { status: 1, validUntil: 1 }, options: { background: true } },
+    { fields: { validUntil: 1 }, options: { background: true } },
+  ],
 };
 
 /**
@@ -233,6 +250,7 @@ export const createAllIndexes = async () => {
     Address,
     Offer,
     Vehicle,
+    Membership,
   };
 
   const indexPromises = Object.entries(INDEX_CONFIGS).map(
@@ -271,6 +289,7 @@ export const dropAllIndexes = async () => {
     Address,
     Offer,
     Vehicle,
+    Membership,
   };
 
   for (const [modelName, Model] of Object.entries(models)) {
@@ -314,6 +333,7 @@ export const getIndexStats = async () => {
     Address,
     Offer,
     Vehicle,
+    Membership,
   };
   const stats = {};
 

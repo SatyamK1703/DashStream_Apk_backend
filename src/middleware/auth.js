@@ -257,6 +257,48 @@ export const logout = (req, res, next) => {
 };
 
 /**
+ * Optional authentication - doesn't fail if no token provided
+ * Sets req.user if authentication succeeds, leaves it undefined if not
+ */
+export const optionalAuth = asyncHandler(async (req, res, next) => {
+  try {
+    // Try to extract and verify token
+    const token = extractToken(req);
+
+    if (!token) {
+      // No token provided - continue without authentication
+      return next();
+    }
+
+    // Verify token
+    const decoded = verifyToken(token);
+
+    // Check if user still exists
+    const currentUser = await User.findById(decoded.id).select("+active +email");
+    if (!currentUser) {
+      // User not found - continue without authentication
+      return next();
+    }
+
+    // Check if user account is active
+    if (currentUser.active === false) {
+      // User deactivated - continue without authentication
+      return next();
+    }
+
+    // Authentication successful - set user
+    req.user = currentUser;
+    req.token = token;
+
+  } catch (error) {
+    // Authentication failed - continue without authentication
+    console.log("Optional auth failed:", error.message);
+  }
+
+  next();
+});
+
+/**
  * Refresh access token using refresh token
  */
 export const refreshToken = asyncHandler(async (req, res, next) => {
@@ -271,15 +313,10 @@ export const refreshToken = asyncHandler(async (req, res, next) => {
     // Verify refresh token
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
 
-    // Check if user still exists
+    // Check if user still exists and is active
     const currentUser = await User.findById(decoded.id);
-    if (!currentUser) {
-      return next(new AppError("User no longer exists", 401));
-    }
-
-    // Check if user is active
-    if (currentUser.active === false) {
-      return next(new AppError("User account is deactivated", 401));
+    if (!currentUser || currentUser.active === false) {
+      return next(new AppError("User no longer exists or is deactivated", 401));
     }
 
     // Generate new tokens
