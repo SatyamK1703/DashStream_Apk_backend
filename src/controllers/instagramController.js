@@ -1,7 +1,11 @@
 import InstagramReels from '../models/instagramModel.js';
 import { asyncHandler } from '../middleware/errorMiddleware.js';
 import { AppError } from '../utils/appError.js';
+import { upload } from '../utils/cloudinary.js';
 
+
+// Middleware for uploading reel preview image
+export const uploadReelImage = upload.single('reelPreviewImage');
 
 // @desc    ADD a new Instagram reel entry In app
 // @route   POST /api/instagram/reels
@@ -9,7 +13,12 @@ import { AppError } from '../utils/appError.js';
 
 export const addInstagramReel = asyncHandler(async (req, res, next) => {
     try {
-        const { reelPreviewImage, reelName, reelLink } = req.body;
+        const { reelName, reelLink } = req.body;
+        let reelPreviewImage = req.body.reelPreviewImage;
+
+        if (req.file) {
+            reelPreviewImage = req.file.path;
+        }
 
         const newReel = await InstagramReels.create({
             reelPreviewImage,
@@ -69,7 +78,3 @@ export const deleteInstagramReel = asyncHandler(async (req, res, next) => {
         data: null,
     });
 });
-
-
-
- 

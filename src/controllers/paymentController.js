@@ -319,20 +319,54 @@ export const processWebhookEvent = async (event) => {
 
     // Check for Membership record if no Payment record found
     let membershipRecord = null;
-    if (!paymentRecord && orderId) {
-      // Try to find membership with the orderId as-is
-      membershipRecord = await Membership.findOne({ orderId });
+    if (!paymentRecord) {
+      // First try to find by orderId with various formats
+      if (orderId) {
+        console.log(`Looking for membership with orderId: ${orderId}`);
 
-      // If not found and orderId starts with "order_", try without prefix
-      if (!membershipRecord && orderId.startsWith('order_')) {
-        const orderIdWithoutPrefix = orderId.substring(6); // Remove "order_" prefix
-        membershipRecord = await Membership.findOne({ orderId: orderIdWithoutPrefix });
+        // Try to find membership with the orderId as-is
+        membershipRecord = await Membership.findOne({ orderId });
+        console.log(`Found membership with exact orderId ${orderId}: ${!!membershipRecord}`);
+
+        // If not found and orderId starts with "order_", try without prefix
+        if (!membershipRecord && orderId.startsWith('order_')) {
+          const orderIdWithoutPrefix = orderId.substring(6); // Remove "order_" prefix
+          console.log(`Trying orderId without prefix: ${orderIdWithoutPrefix}`);
+          membershipRecord = await Membership.findOne({ orderId: orderIdWithoutPrefix });
+          console.log(`Found membership with orderId ${orderIdWithoutPrefix}: ${!!membershipRecord}`);
+        }
+
+        // If not found and orderId doesn't start with "order_", try with prefix
+        if (!membershipRecord && !orderId.startsWith('order_')) {
+          const orderIdWithPrefix = `order_${orderId}`;
+          console.log(`Trying orderId with prefix: ${orderIdWithPrefix}`);
+          membershipRecord = await Membership.findOne({ orderId: orderIdWithPrefix });
+          console.log(`Found membership with orderId ${orderIdWithPrefix}: ${!!membershipRecord}`);
+        }
       }
 
-      // If not found and orderId doesn't start with "order_", try with prefix
-      if (!membershipRecord && !orderId.startsWith('order_')) {
-        const orderIdWithPrefix = `order_${orderId}`;
-        membershipRecord = await Membership.findOne({ orderId: orderIdWithPrefix });
+      // If still not found, try to find by userId and planId from notes
+      if (!membershipRecord && (paymentEntity?.notes?.userId && paymentEntity?.notes?.planId)) {
+        const { userId, planId } = paymentEntity.notes;
+        console.log(`Trying to find membership by userId ${userId} and planId ${planId}`);
+        membershipRecord = await Membership.findOne({
+          userId,
+          planId,
+          status: { $in: ['pending', 'active'] } // Look for pending or active memberships
+        });
+        console.log(`Found membership by userId and planId: ${!!membershipRecord}`);
+      }
+
+      // Also try order entity notes if payment entity notes don't work
+      if (!membershipRecord && (orderEntity?.notes?.userId && orderEntity?.notes?.planId)) {
+        const { userId, planId } = orderEntity.notes;
+        console.log(`Trying to find membership by order entity userId ${userId} and planId ${planId}`);
+        membershipRecord = await Membership.findOne({
+          userId,
+          planId,
+          status: { $in: ['pending', 'active'] }
+        });
+        console.log(`Found membership by order entity userId and planId: ${!!membershipRecord}`);
       }
     }
 
@@ -352,7 +386,7 @@ export const processWebhookEvent = async (event) => {
 
     // Log what we found
     if (membershipRecord) {
-      console.log(`Found membership record for orderId: ${orderId}, membershipId: ${membershipRecord._id}`);
+      console.log(`Found membership record: membershipId ${membershipRecord._id}, userId ${membershipRecord.userId}, planId ${membershipRecord.planId}, orderId ${membershipRecord.orderId}, status ${membershipRecord.status}`);
     }
 
     // Idempotency: skip if we've already processed this event id
@@ -362,8 +396,8 @@ export const processWebhookEvent = async (event) => {
         (e) => e.eventId === eventId
       );
     } else if (membershipRecord) {
-      // For memberships, check if already active (simple idempotency)
-      // For payment.captured events, if already active, skip
+      // For memberships found by userId/planId, we can't check eventId since we don't store webhook events
+      // So we use simple idempotency based on status
       alreadyProcessed = membershipRecord.status === 'active' && eventType === 'payment.captured';
     }
     if (alreadyProcessed) {

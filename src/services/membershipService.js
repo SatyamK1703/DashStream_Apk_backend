@@ -31,11 +31,28 @@ export const createMembershipOrder = async (planId, user, amount) => {
 
     const paymentLink = await razorpayInstance.paymentLink.create(paymentLinkRequest);
 
+    console.log('Payment link created:', {
+      paymentLinkId: paymentLink.id,
+      orderId: paymentLink.order_id,
+      shortUrl: paymentLink.short_url
+    });
+
+    // Create membership record in database
+    const membership = await createMembership(planId, user.id, paymentLink.order_id);
+
+    console.log('Membership created:', {
+      membershipId: membership._id,
+      planId,
+      userId: user.id,
+      orderId: paymentLink.order_id
+    });
+
     return {
       paymentLink: paymentLink.short_url,
       orderId: paymentLink.order_id,
       amount: amount,
       currency: "INR",
+      membershipId: membership._id,
     };
   } catch (error) {
     console.error("Error creating Razorpay membership order:", error);
