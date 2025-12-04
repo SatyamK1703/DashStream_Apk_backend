@@ -3,6 +3,7 @@ import { createOrder } from './paymentService.js';
 import crypto from 'crypto';
 import razorpayInstance, { getRazorpayKeyId } from "../config/razorpay.js";
 import { AppError } from "../utils/appError.js";
+import { MEMBERSHIP_PLANS } from '../config/membershipPlans.js';
 
 export const createMembershipOrder = async (planId, user, amount) => {
   try {
@@ -97,4 +98,8 @@ export const verifyPayment = async (orderId, paymentId, signature) => {
 export const getMembershipStatus = async (userId) => {
   const membership = await Membership.findOne({ userId, status: 'active' });
   return membership;
+};
+
+export const getMembershipPlans = async () => {
+  return MEMBERSHIP_PLANS;
 };

@@ -40,11 +40,33 @@ export const getMembershipStatus = async (req, res) => {
   try {
     const membership = await membershipService.getMembershipStatus(userId);
     if (membership) {
-      res.status(200).json(membership);
+      // Format the response to match frontend expectations
+      const formattedMembership = {
+        active: membership.status === 'active',
+        plan: membership.planId,
+        validUntil: membership.validUntil ? membership.validUntil.toISOString().split('T')[0] : null,
+        autoRenew: membership.autoRenew || false,
+        usedServices: 0, // TODO: Implement service usage tracking
+        totalServices: membership.planId === 'silver' ? 4 : membership.planId === 'gold' ? 8 : 12, // Basic mapping
+        savings: 0, // TODO: Implement savings calculation
+      };
+      res.status(200).json(formattedMembership);
     } else {
       res.status(404).json({ message: 'No active membership found' });
     }
   } catch (error) {
     res.status(500).json({ message: 'Error getting membership status', error });
+  }
+};
+
+export const getMembershipPlans = async (req, res) => {
+  try {
+    const plans = await membershipService.getMembershipPlans();
+    res.status(200).json({
+      success: true,
+      data: plans,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error getting membership plans', error });
   }
 };
