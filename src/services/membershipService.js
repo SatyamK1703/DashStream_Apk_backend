@@ -8,8 +8,6 @@ import { MEMBERSHIP_PLANS } from '../config/membershipPlans.js';
 export const createMembershipOrder = async (planId, user, amount) => {
   try {
     const paymentLinkRequest = {
-      amount: amount * 100,
-      currency: "INR",
       accept_partial: false,
       description: "For Membership",
       customer: {
@@ -22,24 +20,41 @@ export const createMembershipOrder = async (planId, user, amount) => {
         email: true,
       },
       reminder_enable: true,
+      // Note: callback_url is not set for mobile app flow
+      // Payment completion is handled within the app after browser closes
+    };
+
+    // First create an order
+    const orderOptions = {
+      amount: amount * 100, // amount in paisa
+      currency: "INR",
+      receipt: `receipt_membership_${Date.now()}`,
       notes: {
         planId: planId.toString(),
         userId: user.id.toString(),
       },
-      callback_url: "https://dashstream.com/membership/success", // Replace with your actual success URL
-      callback_method: "get",
     };
+
+    const order = await razorpayInstance.orders.create(orderOptions);
+    console.log('Order created:', {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency
+    });
+
+    // Update payment link request to include the order_id
+    paymentLinkRequest.order_id = order.id;
 
     const paymentLink = await razorpayInstance.paymentLink.create(paymentLinkRequest);
 
     console.log('Payment link created:', {
       paymentLinkId: paymentLink.id,
-      orderId: paymentLink.order_id,
+      orderId: paymentLink.order_id || order.id,
       shortUrl: paymentLink.short_url
     });
 
     // Create membership record in database
-    const membership = await createMembership(planId, user.id, paymentLink.order_id);
+    const membership = await createMembership(planId, user.id, order.id);
 
     console.log('Membership created:', {
       membershipId: membership._id,
@@ -50,7 +65,7 @@ export const createMembershipOrder = async (planId, user, amount) => {
 
     return {
       paymentLink: paymentLink.short_url,
-      orderId: paymentLink.order_id,
+      orderId: order.id,
       amount: amount,
       currency: "INR",
       membershipId: membership._id,
