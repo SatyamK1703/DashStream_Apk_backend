@@ -160,7 +160,7 @@ export const protect = asyncHandler(async (req, res, next) => {
     console.log("✅ Token decoded successfully, user ID:", decoded.id);
 
     // 3. Check if user still exists
-    const currentUser = await User.findById(decoded.id).select("+active");
+    const currentUser = await User.findById(decoded.id).select("+active +email");
     if (!currentUser) {
       console.log("❌ User not found in database:", decoded.id);
       return next(
@@ -168,108 +168,23 @@ export const protect = asyncHandler(async (req, res, next) => {
       );
     }
 
-    console.log("✅ User found:", {
-      id: currentUser._id,
-      name: currentUser.name,
-      phone: currentUser.phone,
-      active: currentUser.active,
-    });
-
     // 4. Check if user account is active
     if (currentUser.active === false) {
       console.log("❌ User account is deactivated");
       return next(
-        new AppError(
-          "Your account has been deactivated. Please contact support.",
-          401
-        )
+        new AppError("Your account has been deactivated. Please contact support.", 401)
       );
     }
 
-    // 5. Update last active timestamp
-    currentUser.lastActive = new Date();
-    await currentUser.save({ validateBeforeSave: false });
-
-    // 6. Grant access to protected route
+    // Grant access to protected route
     req.user = currentUser;
     req.token = token;
-    console.log("✅ User authenticated successfully, proceeding to route");
+
     next();
   } catch (error) {
-    // Handle specific JWT errors
-    let message = "Invalid token. Please log in again.";
-
-    if (error.name === "JsonWebTokenError") {
-      message = "Invalid token. Please log in again.";
-    } else if (error.name === "TokenExpiredError") {
-      message = "Your session has expired. Please log in again.";
-    } else if (error.name === "NotBeforeError") {
-      message = "Token not active yet. Please try again later.";
-    }
-
-    return next(new AppError(message, 401));
+    console.log("❌ Authentication error:", error.message);
+    return next(new AppError("Invalid token or authentication failed", 401));
   }
-});
-
-/**
- * Refresh token endpoint
- */
-export const refreshToken = asyncHandler(async (req, res, next) => {
-  // 1. Get refresh token
-  let refreshToken = req.body.refreshToken || req.cookies.refreshToken;
-
-  if (!refreshToken) {
-    return next(new AppError("No refresh token provided", 401));
-  }
-
-  try {
-    // 2. Verify refresh token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-
-    if (decoded.type !== "refresh") {
-      return next(new AppError("Invalid refresh token", 401));
-    }
-
-    // 3. Check if user still exists
-    const currentUser = await User.findById(decoded.id);
-    if (!currentUser) {
-      return next(new AppError("User no longer exists", 401));
-    }
-
-    if (currentUser.active === false) {
-      return next(new AppError("Account has been deactivated", 401));
-    }
-
-    // 4. Generate new tokens
-    createSendToken(currentUser, 200, res, "Token refreshed successfully");
-  } catch (error) {
-    return next(new AppError("Invalid refresh token", 401));
-  }
-});
-
-/**
- * Optional authentication middleware
- * Sets user if token is provided, but doesn't fail if not
- */
-export const optionalAuth = asyncHandler(async (req, res, next) => {
-  const token = extractToken(req);
-
-  if (token) {
-    try {
-      const decoded = verifyToken(token);
-      const currentUser = await User.findById(decoded.id).select("+active");
-
-      if (currentUser && currentUser.active !== false) {
-        req.user = currentUser;
-        req.token = token;
-      }
-    } catch (error) {
-      // Silently fail for optional auth
-      console.log("Optional auth failed:", error.message);
-    }
-  }
-
-  next();
 });
 
 /**

@@ -12,12 +12,12 @@ export const createMembershipOrder = async (planId, user, amount) => {
       description: "For Membership",
       customer: {
         name: user.name,
-        email: user.email,
         contact: user.phone,
+        ...(user.email && { email: user.email }), // Only include email if it exists
       },
       notify: {
         sms: true,
-        email: true,
+        email: !!user.email, // Only send email notifications if email exists
       },
       reminder_enable: true,
       // Note: callback_url is not set for mobile app flow
