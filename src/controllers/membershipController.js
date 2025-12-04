@@ -7,15 +7,10 @@ export const purchaseMembership = async (req, res) => {
 
   try {
     const order = await membershipService.createMembershipOrder(planId, user, amount);
-    res.status(201).json({
-      success: true,
-      status: 'success',
-      message: 'Membership order created successfully',
-      data: order,
-    });
+    res.sendSuccess(order, 'Membership order created successfully', 201);
   } catch (error) {
     console.error('Error in purchaseMembership controller:', error);
-    res.status(500).json({ message: 'Error purchasing membership', error: error.message });
+    res.sendError('Error purchasing membership', 500);
   }
 };
 
@@ -25,12 +20,12 @@ export const verifyPayment = async (req, res) => {
   try {
     const membership = await membershipService.verifyPayment(orderId, paymentId, signature);
     if (membership) {
-      res.status(200).json(membership);
+      res.sendSuccess(membership, 'Payment verified successfully');
     } else {
-      res.status(400).json({ message: 'Invalid payment signature' });
+      res.sendBadRequest('Invalid payment signature');
     }
   } catch (error) {
-    res.status(500).json({ message: 'Error verifying payment', error });
+    res.sendError('Error verifying payment', 500);
   }
 };
 
@@ -50,23 +45,20 @@ export const getMembershipStatus = async (req, res) => {
         totalServices: membership.planId === 'silver' ? 4 : membership.planId === 'gold' ? 8 : 12, // Basic mapping
         savings: 0, // TODO: Implement savings calculation
       };
-      res.status(200).json(formattedMembership);
+      res.sendSuccess(formattedMembership, 'Membership status retrieved successfully');
     } else {
-      res.status(404).json({ message: 'No active membership found' });
+      res.sendNotFound('No active membership found');
     }
   } catch (error) {
-    res.status(500).json({ message: 'Error getting membership status', error });
+    res.sendError('Error getting membership status', 500);
   }
 };
 
 export const getMembershipPlans = async (req, res) => {
   try {
     const plans = await membershipService.getMembershipPlans();
-    res.status(200).json({
-      success: true,
-      data: plans,
-    });
+    res.sendSuccess(plans, 'Membership plans retrieved successfully');
   } catch (error) {
-    res.status(500).json({ message: 'Error getting membership plans', error });
+    res.sendError('Error getting membership plans', 500);
   }
 };

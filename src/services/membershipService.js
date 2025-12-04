@@ -8,20 +8,12 @@ import { MEMBERSHIP_PLANS } from '../config/membershipPlans.js';
 export const createMembershipOrder = async (planId, user, amount) => {
   try {
     const paymentLinkRequest = {
-      accept_partial: false,
       description: "For Membership",
       customer: {
         name: user.name,
         contact: user.phone,
-        ...(user.email && { email: user.email }), // Only include email if it exists
+        email: user.email || "noemail@example.com",
       },
-      notify: {
-        sms: true,
-        email: !!user.email, // Only send email notifications if email exists
-      },
-      reminder_enable: true,
-      // Note: callback_url is not set for mobile app flow
-      // Payment completion is handled within the app after browser closes
     };
 
     // First create an order
