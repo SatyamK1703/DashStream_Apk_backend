@@ -7,15 +7,6 @@ import { MEMBERSHIP_PLANS } from '../config/membershipPlans.js';
 
 export const createMembershipOrder = async (planId, user, amount) => {
   try {
-    const paymentLinkRequest = {
-      description: "For Membership",
-      customer: {
-        name: user.name,
-        contact: user.phone,
-        email: user.email || "noemail@example.com",
-      },
-    };
-
     // First create an order
     const orderOptions = {
       amount: amount * 100, // amount in paisa
@@ -34,8 +25,9 @@ export const createMembershipOrder = async (planId, user, amount) => {
       currency: order.currency
     });
 
-    // Update payment link request to include the order_id
-    paymentLinkRequest.order_id = order.id;
+    const paymentLinkRequest = {
+      order_id: order.id,
+    };
 
     const paymentLink = await razorpayInstance.paymentLink.create(paymentLinkRequest);
 
