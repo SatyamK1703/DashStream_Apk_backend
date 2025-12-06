@@ -28,6 +28,7 @@ export const successResponse = ({
   meta = {},
 } = {}) => {
   return {
+    success: true,
     status: ResponseStatus.SUCCESS,
     statusCode,
     message,
