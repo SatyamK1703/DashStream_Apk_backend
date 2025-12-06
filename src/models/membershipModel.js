@@ -4,6 +4,7 @@ const MembershipSchema = new mongoose.Schema({
   planId: { type: String, required: true },
   userId: { type: String, required: true },
   orderId: { type: String, required: true },
+  paymentLinkId: { type: String, required: true },
   paymentId: { type: String },
   signature: { type: String },
   status: { type: String, default: 'pending' },

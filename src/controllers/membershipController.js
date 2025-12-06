@@ -15,10 +15,10 @@ export const purchaseMembership = async (req, res) => {
 };
 
 export const verifyPayment = async (req, res) => {
-  const { orderId, paymentId, signature } = req.body;
+  const { razorpay_payment_link_id, razorpay_payment_id, razorpay_signature } = req.body;
 
   try {
-    const membership = await membershipService.verifyPayment(orderId, paymentId, signature);
+    const membership = await membershipService.verifyPayment(razorpay_payment_link_id, razorpay_payment_id, razorpay_signature);
     if (membership) {
       res.sendSuccess(membership, 'Payment verified successfully');
     } else {
