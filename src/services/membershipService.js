@@ -25,8 +25,23 @@ export const createMembershipOrder = async (planId, user, amount) => {
       currency: order.currency
     });
 
+    const paymentLinkRequest = {
+      amount: amount * 100,
+      currency: "INR",
+      description: `Membership payment for plan ${planId}`,
+      reference_id: order.id,
+    };
+
+    const paymentLink = await razorpayInstance.paymentLink.create(paymentLinkRequest);
+
+    console.log('Payment link created:', {
+      paymentLinkId: paymentLink.id,
+      orderId: paymentLink.order_id || order.id,
+      shortUrl: paymentLink.short_url
+    });
+
     // Create membership record in database
-    const membership = await createMembership(planId, user.id, order.id, null);
+    const membership = await createMembership(planId, user.id, order.id, paymentLink.id);
 
     console.log('Membership created:', {
       membershipId: membership._id,
@@ -36,6 +51,7 @@ export const createMembershipOrder = async (planId, user, amount) => {
     });
 
     return {
+      paymentLink: paymentLink.short_url,
       id: order.id,
       amount: amount,
       currency: "INR",
@@ -60,14 +76,14 @@ export const createMembership = async (planId, userId, orderId, paymentLinkId = 
   return membership;
 };
 
-export const verifyPayment = async (orderId, paymentId, signature) => {
-  const membership = await Membership.findOne({ orderId });
+export const verifyPayment = async (paymentLinkId, paymentId, signature) => {
+  const membership = await Membership.findOne({ paymentLinkId });
 
   if (!membership) {
     return null;
   }
 
-  const body = `${orderId}|${paymentId}`;
+  const body = `${paymentLinkId}|${paymentId}`;
   const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(body).digest('hex');
 
   if (expectedSignature === signature) {
