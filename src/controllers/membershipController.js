@@ -1,4 +1,6 @@
 import * as membershipService from '../services/membershipService.js';
+import crypto from 'crypto';
+import Membership from '../models/membershipModel.js';
 
 export const purchaseMembership = async (req, res) => {
   console.log('Request body:', req.body);
@@ -26,6 +28,44 @@ export const verifyPayment = async (req, res) => {
     }
   } catch (error) {
     res.sendError('Error verifying payment', 500);
+  }
+};
+
+// Webhook for automatic payment verification
+export const handlePaymentWebhook = async (req, res) => {
+  try {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const signature = req.headers['x-razorpay-signature'];
+    const body = JSON.stringify(req.body);
+
+    // Verify webhook signature
+    const expectedSignature = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+    if (expectedSignature !== signature) {
+      console.error('Invalid webhook signature');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    const event = req.body.event;
+    const paymentEntity = req.body.payload.payment.entity;
+
+    if (event === 'payment.captured') {
+      // Find membership by payment ID
+      const membership = await Membership.findOne({ paymentId: paymentEntity.id });
+
+      if (membership && membership.status !== 'active') {
+        membership.status = 'active';
+        membership.validUntil = new Date(new Date().setMonth(new Date().getMonth() + 1));
+        await membership.save();
+
+        console.log('Membership activated via webhook:', membership._id);
+      }
+    }
+
+    res.json({ status: 'ok' });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
   }
 };
 
