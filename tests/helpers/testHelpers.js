@@ -9,7 +9,7 @@ export const generateTestToken = (userId, role = "customer") => {
   return jwt.sign(
     { id: userId, role },
     process.env.JWT_SECRET || "test-secret",
-    { expiresIn: "1d" }
+    { expiresIn: "1d", issuer: "dashstream-api", audience: "dashstream-app" }
   );
 };
 

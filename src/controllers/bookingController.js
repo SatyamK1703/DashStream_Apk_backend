@@ -9,29 +9,43 @@ import { sendBookingNotification } from '../services/notificationService.js';
 
 //POST /api/bookings
 export const createBooking = asyncHandler(async (req, res, next) => {
-  const { service: serviceIds, ...otherBookingData } = req.body;
+  const { service: serviceItems, ...otherBookingData } = req.body;
 
-  if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+  if (!serviceItems || !Array.isArray(serviceItems) || serviceItems.length === 0) {
     return next(new AppError('Please provide at least one service.', 400));
   }
 
+  const serviceIds = serviceItems.map(s => s.serviceId);
   const services = await Service.find({ '_id': { $in: serviceIds } }).select('title price duration');
 
-  if (services.length !== serviceIds.length) {
+  if (services.length !== new Set(serviceIds).size) {
     const foundIds = services.map(s => s._id.toString());
-    const notFoundIds = serviceIds.filter(id => !foundIds.includes(id));
+    const notFoundIds = [...new Set(serviceIds)].filter(id => !foundIds.includes(id));
     return next(new AppError(`Services not found: ${notFoundIds.join(', ')}`, 404));
   }
 
-  const servicesForBooking = services.map(service => ({
-    serviceId: service._id,
-    title: service.title,
-    price: service.price,
-    duration: parseInt(service.duration, 10) || 0,
-  }));
+  const serviceMap = new Map(services.map(s => [s._id.toString(), s]));
 
-  const totalAmount = servicesForBooking.reduce((sum, item) => sum + item.price, 0);
-  const estimatedDuration = servicesForBooking.reduce((sum, item) => sum + item.duration, 0);
+  const servicesForBooking = [];
+  let totalAmount = 0;
+  let estimatedDuration = 0;
+
+  for (const item of serviceItems) {
+    const service = serviceMap.get(item.serviceId);
+    if (!service) continue;
+
+    const quantity = item.quantity || 1;
+    servicesForBooking.push({
+      serviceId: service._id,
+      title: service.title,
+      price: service.price,
+      duration: parseInt(service.duration, 10) || 0,
+      quantity,
+    });
+
+    totalAmount += service.price * quantity;
+    estimatedDuration += (parseInt(service.duration, 10) || 0) * quantity;
+  }
 
   const bookingData = {
     ...otherBookingData,

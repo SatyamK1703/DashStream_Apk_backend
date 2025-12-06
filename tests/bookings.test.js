@@ -31,9 +31,9 @@ describe("Booking API_ENDPOINTS", () => {
 
     // Create test service
     testService = await Service.create({
-      name: "Test Service",
+      title: "Test Service",
       description: "Test service description",
-      category: "plumbing",
+      category: "car wash",
       price: 100,
       duration: 60,
       isActive: true,
@@ -43,7 +43,7 @@ describe("Booking API_ENDPOINTS", () => {
   describe("POST /api/bookings", () => {
     test("should create new booking as customer", async () => {
       const bookingData = {
-        service: testService._id,
+        service: [{ serviceId: testService._id, quantity: 1 }],
         professional: professional._id,
         scheduledDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
         address: {
@@ -61,11 +61,12 @@ describe("Booking API_ENDPOINTS", () => {
         .send(bookingData)
         .expect(201);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.booking.service).toBe(
+      expect(response.body.status).toBe("success");
+      expect(response.body.booking.services).toHaveLength(1);
+      expect(response.body.booking.services[0].serviceId._id).toBe(
         testService._id.toString()
       );
-      expect(response.body.data.booking.professional).toBe(
+      expect(response.body.booking.professional).toBe(
         professional._id.toString()
       );
     });
@@ -102,7 +103,7 @@ describe("Booking API_ENDPOINTS", () => {
       // Create test booking
       await Booking.create({
         customer: customer._id,
-        service: testService._id,
+        services: [{ serviceId: testService._id, title: testService.title, price: testService.price, duration: testService.duration, quantity: 1 }],
         professional: professional._id,
         scheduledDate: new Date(),
         address: {
@@ -112,6 +113,8 @@ describe("Booking API_ENDPOINTS", () => {
           zipCode: "12345",
         },
         status: "pending",
+        totalAmount: testService.price,
+        estimatedDuration: testService.duration,
       });
     });
 
@@ -153,7 +156,7 @@ describe("Booking API_ENDPOINTS", () => {
     beforeEach(async () => {
       testBooking = await Booking.create({
         customer: customer._id,
-        service: testService._id,
+        services: [{ serviceId: testService._id, title: testService.title, price: testService.price, duration: testService.duration, quantity: 1 }],
         professional: professional._id,
         scheduledDate: new Date(),
         address: {
@@ -163,6 +166,8 @@ describe("Booking API_ENDPOINTS", () => {
           zipCode: "12345",
         },
         status: "pending",
+        totalAmount: testService.price,
+        estimatedDuration: testService.duration,
       });
     });
 
@@ -207,7 +212,7 @@ describe("Booking API_ENDPOINTS", () => {
     beforeEach(async () => {
       testBooking = await Booking.create({
         customer: customer._id,
-        service: testService._id,
+        services: [{ serviceId: testService._id, title: testService.title, price: testService.price, duration: testService.duration, quantity: 1 }],
         professional: professional._id,
         scheduledDate: new Date(),
         address: {
@@ -217,6 +222,8 @@ describe("Booking API_ENDPOINTS", () => {
           zipCode: "12345",
         },
         status: "pending",
+        totalAmount: testService.price,
+        estimatedDuration: testService.duration,
       });
     });
 
@@ -248,7 +255,7 @@ describe("Booking API_ENDPOINTS", () => {
     beforeEach(async () => {
       testBooking = await Booking.create({
         customer: customer._id,
-        service: testService._id,
+        services: [{ serviceId: testService._id, title: testService.title, price: testService.price, duration: testService.duration, quantity: 1 }],
         professional: professional._id,
         scheduledDate: new Date(),
         address: {
@@ -258,6 +265,8 @@ describe("Booking API_ENDPOINTS", () => {
           zipCode: "12345",
         },
         status: "in-progress",
+        totalAmount: testService.price,
+        estimatedDuration: testService.duration,
       });
     });
 
@@ -294,7 +303,7 @@ describe("Booking API_ENDPOINTS", () => {
     beforeEach(async () => {
       testBooking = await Booking.create({
         customer: customer._id,
-        service: testService._id,
+        services: [{ serviceId: testService._id, title: testService.title, price: testService.price, duration: testService.duration, quantity: 1 }],
         professional: professional._id,
         scheduledDate: new Date(),
         address: {
@@ -304,6 +313,8 @@ describe("Booking API_ENDPOINTS", () => {
           zipCode: "12345",
         },
         status: "completed",
+        totalAmount: testService.price,
+        estimatedDuration: testService.duration,
       });
     });
 

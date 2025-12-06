@@ -8,6 +8,7 @@ const serviceItemSchema = new Schema(
     title: { type: String },
     price: { type: Number, required: true },
     duration: { type: Number },
+    quantity: { type: Number, default: 1 },
   },
   { _id: false }
 );
