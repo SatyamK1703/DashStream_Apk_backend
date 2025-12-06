@@ -30,59 +30,67 @@ describe("Offer API_ENDPOINTS", () => {
       {
         title: "Summer Special",
         description: "Get 20% off on all plumbing services",
-        code: "SUMMER20",
+        offerCode: "SUMMER20",
         discountType: "percentage",
-        discountValue: 20,
+        discount: 20,
         minOrderValue: 100,
         maxDiscountAmount: 50,
-        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        validFrom: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         isActive: true,
-        featured: true,
+        isFeatured: true,
         usageLimit: 100,
-        usedCount: 10,
-        applicableServices: ["plumbing"],
-        userLimit: 1,
+        usageCount: 10,
+        applicableServices: [],
+        userUsageLimit: 1,
+        createdBy: admin._id,
       },
       {
         title: "First Time User",
         description: "₹50 off on your first booking",
-        code: "FIRST50",
+        offerCode: "FIRST50",
         discountType: "fixed",
-        discountValue: 50,
+        discount: 50,
         minOrderValue: 200,
-        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        validFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         isActive: true,
-        featured: false,
+        isFeatured: false,
         usageLimit: 1000,
-        usedCount: 50,
-        newUsersOnly: true,
-        userLimit: 1,
+        usageCount: 50,
+        applicableServices: [],
+        userUsageLimit: 1,
+        createdBy: admin._id,
       },
       {
         title: "Expired Offer",
         description: "This offer has expired",
-        code: "EXPIRED10",
+        offerCode: "EXPIRED10",
         discountType: "percentage",
-        discountValue: 10,
-        startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Expired 5 days ago
+        discount: 10,
+        validFrom: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        validUntil: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Expired 5 days ago
         isActive: true,
         usageLimit: 100,
-        usedCount: 0,
+        usageCount: 0,
+        applicableServices: [],
+        userUsageLimit: 1,
+        createdBy: admin._id,
       },
       {
         title: "Inactive Offer",
         description: "This offer is inactive",
-        code: "INACTIVE15",
+        offerCode: "INACTIVE15",
         discountType: "percentage",
-        discountValue: 15,
-        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        discount: 15,
+        validFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         isActive: false,
         usageLimit: 100,
-        usedCount: 0,
+        usageCount: 0,
+        applicableServices: [],
+        userUsageLimit: 1,
+        createdBy: admin._id,
       },
     ]);
   });
@@ -146,7 +154,7 @@ describe("Offer API_ENDPOINTS", () => {
           .expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data.offer.code).toBe("SUMMER20");
+        expect(response.body.data.offer.offerCode).toBe("SUMMER20");
         expect(response.body.data.valid).toBe(true);
       });
 

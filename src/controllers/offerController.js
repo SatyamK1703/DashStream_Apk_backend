@@ -344,30 +344,112 @@ export const useOffer = asyncHandler(async (req, res, next) => {
   });
 });
 
-// GET /api/offers/validate/:code - Validate offer code
-export const validateOfferCode = asyncHandler(async (req, res, next) => {
-  const { code } = req.params;
-  const { serviceId, orderAmount } = req.query;
-  
-  const offer = await Offer.findOne({ 
+// POST /api/offers/apply - Apply offer code and calculate discount
+export const applyOffer = asyncHandler(async (req, res, next) => {
+  const { code, amount, serviceIds } = req.body;
+
+  if (!code || !amount) {
+    return next(new AppError('Offer code and order amount are required', 400));
+  }
+
+  const offer = await Offer.findOne({
     offerCode: code.toUpperCase(),
-    isActive: true 
+    isActive: true
   }).populate('applicableServices', 'title price category');
-  
+
   if (!offer) {
     return next(new AppError('Invalid offer code', 404));
   }
-  
+
   // Check if offer is valid
   if (!offer.isValid) {
     return next(new AppError('This offer has expired or is no longer valid', 400));
   }
-  
+
+  // Check minimum order amount
+  if (offer.minOrderValue && offer.minOrderValue > parseFloat(amount)) {
+    return next(new AppError(`Minimum order amount of ₹${offer.minOrderValue} required`, 400));
+  }
+
+  // Check if applicable to specific services
+  if (serviceIds && serviceIds.length > 0 && offer.applicableServices.length > 0) {
+    const applicableServiceIds = offer.applicableServices.map(s => s._id.toString());
+    const hasApplicableService = serviceIds.some(serviceId =>
+      applicableServiceIds.includes(serviceId)
+    );
+    if (!hasApplicableService) {
+      return next(new AppError('This offer is not applicable to the selected services', 400));
+    }
+  }
+
+  // Check if user can use this offer
+  if (req.user) {
+    const canUse = await Offer.canUserUseOffer(offer._id, req.user.id);
+    if (!canUse) {
+      return next(new AppError('You have already used this offer or reached the usage limit', 400));
+    }
+  }
+
+  // Calculate discount
+  let discount = 0;
+  let discountType = offer.discountType;
+  let maxDiscount = offer.maxDiscountAmount;
+
+  if (offer.discountType === 'percentage') {
+    discount = (parseFloat(amount) * offer.discount) / 100;
+    if (maxDiscount && discount > maxDiscount) {
+      discount = maxDiscount;
+    }
+  } else {
+    discount = offer.discount;
+  }
+
+  const finalAmount = Math.max(0, parseFloat(amount) - discount);
+
+  res.success({
+    data: {
+      valid: true,
+      discount: Math.round(discount * 100) / 100, // Round to 2 decimal places
+      discountType,
+      maxDiscount,
+      finalAmount: Math.round(finalAmount * 100) / 100,
+      offer: {
+        _id: offer._id,
+        title: offer.title,
+        description: offer.description,
+        code: offer.offerCode,
+        type: offer.discountType,
+        value: offer.discount
+      }
+    },
+    message: 'Offer applied successfully'
+  });
+});
+
+// GET /api/offers/validate/:code - Validate offer code
+export const validateOfferCode = asyncHandler(async (req, res, next) => {
+  const { code } = req.params;
+  const { serviceId, orderAmount } = req.query;
+
+  const offer = await Offer.findOne({
+    offerCode: code.toUpperCase(),
+    isActive: true
+  }).populate('applicableServices', 'title price category');
+
+  if (!offer) {
+    return next(new AppError('Invalid offer code', 404));
+  }
+
+  // Check if offer is valid
+  if (!offer.isValid) {
+    return next(new AppError('This offer has expired or is no longer valid', 400));
+  }
+
   // Check minimum order amount
   if (orderAmount && offer.minOrderAmount > parseFloat(orderAmount)) {
     return next(new AppError(`Minimum order amount of ₹${offer.minOrderAmount} required`, 400));
   }
-  
+
   // Check if applicable to specific service
   if (serviceId && offer.applicableServices.length > 0) {
     const isApplicable = offer.applicableServices.some(
@@ -377,7 +459,7 @@ export const validateOfferCode = asyncHandler(async (req, res, next) => {
       return next(new AppError('This offer is not applicable to the selected service', 400));
     }
   }
-  
+
   // Check if user can use this offer
   if (req.user) {
     const canUse = await Offer.canUserUseOffer(offer._id, req.user.id);
@@ -385,14 +467,13 @@ export const validateOfferCode = asyncHandler(async (req, res, next) => {
       return next(new AppError('You have already used this offer or reached the usage limit', 400));
     }
   }
-  
-  res.status(200).json({
-    status: 'success',
-    message: 'Offer code is valid',
+
+  res.success({
     data: {
       offer,
-      isValid: true
-    }
+      valid: true
+    },
+    message: 'Offer code is valid'
   });
 });
 

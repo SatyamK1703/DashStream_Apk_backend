@@ -32,9 +32,9 @@ describe("Admin API_ENDPOINTS", () => {
 
     // Create test service
     testService = await Service.create({
-      name: "Test Service",
+      title: "Test Service",
       description: "Test service for admin tests",
-      category: "plumbing",
+      category: "car wash",
       price: 150,
       duration: 120,
       isActive: true,
@@ -58,24 +58,24 @@ describe("Admin API_ENDPOINTS", () => {
   });
 
   describe("Dashboard Routes", () => {
-    describe("GET /api/admins/dashboard", () => {
+    describe("GET /api/admin/dashboard", () => {
       test("should get dashboard statistics as admin", async () => {
         const response = await request(app)
-          .get("/api/admins/dashboard")
+          .get("/api/admin/dashboard")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toHaveProperty("stats");
-        expect(response.body.data.stats).toHaveProperty("totalUsers");
-        expect(response.body.data.stats).toHaveProperty("totalBookings");
-        expect(response.body.data.stats).toHaveProperty("totalRevenue");
-        expect(response.body.data.stats).toHaveProperty("activeServices");
+        expect(response.body.data.stats).toHaveProperty("users");
+        expect(response.body.data.stats).toHaveProperty("bookings");
+        expect(response.body.data.stats).toHaveProperty("revenue");
+        expect(response.body.data.stats).toHaveProperty("services");
       });
 
       test("should include time-based analytics", async () => {
         const response = await request(app)
-          .get("/api/admins/dashboard?period=7d")
+          .get("/api/admin/dashboard?period=7d")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -85,7 +85,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should reject access by non-admin", async () => {
         const response = await request(app)
-          .get("/api/admins/dashboard")
+          .get("/api/admin/dashboard")
           .set(getAuthHeaders(userToken))
           .expect(403);
 
@@ -95,10 +95,10 @@ describe("Admin API_ENDPOINTS", () => {
   });
 
   describe("User Management", () => {
-    describe("GET /api/admins/users", () => {
+    describe("GET /api/admin/users", () => {
       test("should get all users as admin", async () => {
         const response = await request(app)
-          .get("/api/admins/users")
+          .get("/api/admin/users")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -109,7 +109,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should support user filtering", async () => {
         const response = await request(app)
-          .get("/api/admins/users?role=professional")
+          .get("/api/admin/users?role=professional")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -121,7 +121,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should support search functionality", async () => {
         const response = await request(app)
-          .get(`/api/admins/users?search=${user.name}`)
+          .get(`/api/admin/users?search=${user.name}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -133,7 +133,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should support pagination", async () => {
         const response = await request(app)
-          .get("/api/admins/users?page=1&limit=2")
+          .get("/api/admin/users?page=1&limit=2")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -143,25 +143,26 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("POST /api/admins/users", () => {
+    describe("POST /api/admin/users", () => {
       test("should create new user as admin", async () => {
         const userData = {
           name: "Admin Created User",
           email: generateTestEmail(),
           phone: "+1234567893",
           role: "customer",
+          password: "password123",
           isPhoneVerified: true,
         };
 
         const response = await request(app)
-          .post("/api/admins/users")
+          .post("/api/admin/users")
           .set(getAuthHeaders(adminToken))
           .send(userData)
           .expect(201);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data.user.name).toBe(userData.name);
-        expect(response.body.data.user.email).toBe(userData.email);
+        expect(response.body.data.name).toBe(userData.name);
+        expect(response.body.data.email).toBe(userData.email);
       });
 
       test("should create professional user with profile", async () => {
@@ -170,6 +171,7 @@ describe("Admin API_ENDPOINTS", () => {
           email: generateTestEmail(),
           phone: "+1234567894",
           role: "professional",
+          password: "password123",
           isPhoneVerified: true,
           professionalProfile: {
             skills: ["electrical"],
@@ -180,13 +182,13 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .post("/api/admins/users")
+          .post("/api/admin/users")
           .set(getAuthHeaders(adminToken))
           .send(professionalData)
           .expect(201);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data.user.role).toBe("professional");
+        expect(response.body.data.role).toBe("professional");
       });
 
       test("should validate unique phone number", async () => {
@@ -198,7 +200,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .post("/api/admins/users")
+          .post("/api/admin/users")
           .set(getAuthHeaders(adminToken))
           .send(userData)
           .expect(400);
@@ -208,7 +210,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should validate required fields", async () => {
         const response = await request(app)
-          .post("/api/admins/users")
+          .post("/api/admin/users")
           .set(getAuthHeaders(adminToken))
           .send({ name: "Incomplete User" })
           .expect(400);
@@ -217,10 +219,10 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("GET /api/admins/users/:userId", () => {
+    describe("GET /api/admin/users/:userId", () => {
       test("should get specific user details", async () => {
         const response = await request(app)
-          .get(`/api/admins/users/${user._id}`)
+          .get(`/api/admin/users/${user._id}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -231,7 +233,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should include additional user analytics", async () => {
         const response = await request(app)
-          .get(`/api/admins/users/${user._id}?includeStats=true`)
+          .get(`/api/admin/users/${user._id}?includeStats=true`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -243,7 +245,7 @@ describe("Admin API_ENDPOINTS", () => {
         const fakeId = "60d5ecb74844e5a3d4f6d789";
 
         const response = await request(app)
-          .get(`/api/admins/users/${fakeId}`)
+          .get(`/api/admin/users/${fakeId}`)
           .set(getAuthHeaders(adminToken))
           .expect(404);
 
@@ -251,7 +253,7 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("PATCH /api/admins/users/:userId", () => {
+    describe("PATCH /api/admin/users/:userId", () => {
       test("should update user as admin", async () => {
         const updateData = {
           name: "Admin Updated Name",
@@ -259,7 +261,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .patch(`/api/admins/users/${user._id}`)
+          .patch(`/api/admin/users/${user._id}`)
           .set(getAuthHeaders(adminToken))
           .send(updateData)
           .expect(200);
@@ -271,7 +273,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should update user role", async () => {
         const response = await request(app)
-          .patch(`/api/admins/users/${user._id}`)
+          .patch(`/api/admin/users/${user._id}`)
           .set(getAuthHeaders(adminToken))
           .send({ role: "professional" })
           .expect(200);
@@ -282,7 +284,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should validate email format when updating", async () => {
         const response = await request(app)
-          .patch(`/api/admins/users/${user._id}`)
+          .patch(`/api/admin/users/${user._id}`)
           .set(getAuthHeaders(adminToken))
           .send({ email: "invalid-email" })
           .expect(400);
@@ -291,10 +293,10 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("DELETE /api/admins/users/:userId", () => {
+    describe("DELETE /api/admin/users/:userId", () => {
       test("should delete user as admin", async () => {
         const response = await request(app)
-          .delete(`/api/admins/users/${user._id}`)
+          .delete(`/api/admin/users/${user._id}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -308,7 +310,7 @@ describe("Admin API_ENDPOINTS", () => {
       test("should handle user with active bookings", async () => {
         // User has active bookings, should soft delete or handle gracefully
         const response = await request(app)
-          .delete(`/api/admins/users/${user._id}`)
+          .delete(`/api/admin/users/${user._id}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -317,7 +319,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should prevent admin from deleting themselves", async () => {
         const response = await request(app)
-          .delete(`/api/admins/users/${admin._id}`)
+          .delete(`/api/admin/users/${admin._id}`)
           .set(getAuthHeaders(adminToken))
           .expect(400);
 
@@ -328,10 +330,10 @@ describe("Admin API_ENDPOINTS", () => {
   });
 
   describe("Booking Management", () => {
-    describe("GET /api/admins/bookings", () => {
+    describe("GET /api/admin/bookings", () => {
       test("should get all bookings as admin", async () => {
         const response = await request(app)
-          .get("/api/admins/bookings")
+          .get("/api/admin/bookings")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -341,7 +343,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should filter bookings by status", async () => {
         const response = await request(app)
-          .get("/api/admins/bookings?status=pending")
+          .get("/api/admin/bookings?status=pending")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -355,7 +357,7 @@ describe("Admin API_ENDPOINTS", () => {
         const today = new Date().toISOString().split("T")[0];
 
         const response = await request(app)
-          .get(`/api/admins/bookings?startDate=${today}&endDate=${today}`)
+          .get(`/api/admin/bookings?startDate=${today}&endDate=${today}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -363,10 +365,10 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("GET /api/admins/bookings/:bookingId", () => {
+    describe("GET /api/admin/bookings/:bookingId", () => {
       test("should get booking details", async () => {
         const response = await request(app)
-          .get(`/api/admins/bookings/${testBooking._id}`)
+          .get(`/api/admin/bookings/${testBooking._id}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -376,7 +378,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should include related data", async () => {
         const response = await request(app)
-          .get(`/api/admins/bookings/${testBooking._id}?populate=true`)
+          .get(`/api/admin/bookings/${testBooking._id}?populate=true`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -387,7 +389,7 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("PATCH /api/admins/bookings/:bookingId", () => {
+    describe("PATCH /api/admin/bookings/:bookingId", () => {
       test("should update booking as admin", async () => {
         const updateData = {
           status: "confirmed",
@@ -395,7 +397,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .patch(`/api/admins/bookings/${testBooking._id}`)
+          .patch(`/api/admin/bookings/${testBooking._id}`)
           .set(getAuthHeaders(adminToken))
           .send(updateData)
           .expect(200);
@@ -411,7 +413,7 @@ describe("Admin API_ENDPOINTS", () => {
         });
 
         const response = await request(app)
-          .patch(`/api/admins/bookings/${testBooking._id}`)
+          .patch(`/api/admin/bookings/${testBooking._id}`)
           .set(getAuthHeaders(adminToken))
           .send({ professional: newProfessional._id })
           .expect(200);
@@ -425,20 +427,20 @@ describe("Admin API_ENDPOINTS", () => {
   });
 
   describe("Service Management", () => {
-    describe("GET /api/admins/services", () => {
+    describe("GET /api/admin/services", () => {
       test("should get all services including inactive", async () => {
         // Create inactive service
         await Service.create({
-          name: "Inactive Service",
+          title: "Inactive Service",
           description: "This service is inactive",
-          category: "test",
+          category: "car wash",
           price: 100,
           duration: 60,
           isActive: false,
         });
 
         const response = await request(app)
-          .get("/api/admins/services")
+          .get("/api/admin/services")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -453,7 +455,7 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("POST /api/admins/services", () => {
+    describe("POST /api/admin/services", () => {
       test("should create new service as admin", async () => {
         const serviceData = {
           name: "Admin Created Service",
@@ -466,7 +468,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .post("/api/admins/services")
+          .post("/api/admin/services")
           .set(getAuthHeaders(adminToken))
           .send(serviceData)
           .expect(201);
@@ -476,7 +478,7 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("PATCH /api/admins/services/:serviceId", () => {
+    describe("PATCH /api/admin/services/:serviceId", () => {
       test("should update service as admin", async () => {
         const updateData = {
           price: 180,
@@ -484,7 +486,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .patch(`/api/admins/services/${testService._id}`)
+          .patch(`/api/admin/services/${testService._id}`)
           .set(getAuthHeaders(adminToken))
           .send(updateData)
           .expect(200);
@@ -495,10 +497,10 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("DELETE /api/admins/services/:serviceId", () => {
+    describe("DELETE /api/admin/services/:serviceId", () => {
       test("should delete service as admin", async () => {
         const response = await request(app)
-          .delete(`/api/admins/services/${testService._id}`)
+          .delete(`/api/admin/services/${testService._id}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -508,10 +510,10 @@ describe("Admin API_ENDPOINTS", () => {
   });
 
   describe("Professional Management", () => {
-    describe("GET /api/admins/professionals", () => {
+    describe("GET /api/admin/professionals", () => {
       test("should get all professionals", async () => {
         const response = await request(app)
-          .get("/api/admins/professionals")
+          .get("/api/admin/professionals")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -521,7 +523,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should filter by verification status", async () => {
         const response = await request(app)
-          .get("/api/admins/professionals?verified=true")
+          .get("/api/admin/professionals?verified=true")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -530,7 +532,7 @@ describe("Admin API_ENDPOINTS", () => {
 
       test("should filter by availability", async () => {
         const response = await request(app)
-          .get("/api/admins/professionals?available=true")
+          .get("/api/admin/professionals?available=true")
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -538,10 +540,10 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("GET /api/admins/professionals/:professionalId", () => {
+    describe("GET /api/admin/professionals/:professionalId", () => {
       test("should get professional details", async () => {
         const response = await request(app)
-          .get(`/api/admins/professionals/${professional._id}`)
+          .get(`/api/admin/professionals/${professional._id}`)
           .set(getAuthHeaders(adminToken))
           .expect(200);
 
@@ -554,7 +556,7 @@ describe("Admin API_ENDPOINTS", () => {
       test("should include professional statistics", async () => {
         const response = await request(app)
           .get(
-            `/api/admins/professionals/${professional._id}?includeStats=true`
+            `/api/admin/professionals/${professional._id}?includeStats=true`
           )
           .set(getAuthHeaders(adminToken))
           .expect(200);
@@ -564,7 +566,7 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("PATCH /api/admins/professionals/:professionalId", () => {
+    describe("PATCH /api/admin/professionals/:professionalId", () => {
       test("should update professional profile", async () => {
         const updateData = {
           "professionalProfile.hourlyRate": 100,
@@ -572,7 +574,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .patch(`/api/admins/professionals/${professional._id}`)
+          .patch(`/api/admin/professionals/${professional._id}`)
           .set(getAuthHeaders(adminToken))
           .send(updateData)
           .expect(200);
@@ -581,7 +583,7 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("PATCH /api/admins/professionals/:professionalId/verification", () => {
+    describe("PATCH /api/admin/professionals/:professionalId/verification", () => {
       test("should update professional verification status", async () => {
         const verificationData = {
           verified: true,
@@ -591,7 +593,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .patch(`/api/admins/professionals/${professional._id}/verification`)
+          .patch(`/api/admin/professionals/${professional._id}/verification`)
           .set(getAuthHeaders(adminToken))
           .send(verificationData)
           .expect(200);
@@ -609,7 +611,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .patch(`/api/admins/professionals/${professional._id}/verification`)
+          .patch(`/api/admin/professionals/${professional._id}/verification`)
           .set(getAuthHeaders(adminToken))
           .send(rejectionData)
           .expect(200);
@@ -619,7 +621,7 @@ describe("Admin API_ENDPOINTS", () => {
       });
     });
 
-    describe("POST /api/admins/professionals", () => {
+    describe("POST /api/admin/professionals", () => {
       test("should create new professional as admin", async () => {
         const professionalData = {
           name: "Admin Created Professional",
@@ -631,7 +633,7 @@ describe("Admin API_ENDPOINTS", () => {
         };
 
         const response = await request(app)
-          .post("/api/admins/professionals")
+          .post("/api/admin/professionals")
           .set(getAuthHeaders(adminToken))
           .send(professionalData)
           .expect(201);
@@ -650,7 +652,7 @@ describe("Admin API_ENDPOINTS", () => {
   describe("Authorization", () => {
     test("should reject all admin routes without authentication", async () => {
       const response = await request(app)
-        .get("/api/admins/dashboard")
+        .get("/api/admin/dashboard")
         .expect(401);
 
       expect(response.body.success).toBe(false);
@@ -658,7 +660,7 @@ describe("Admin API_ENDPOINTS", () => {
 
     test("should reject admin routes from non-admin users", async () => {
       const response = await request(app)
-        .get("/api/admins/dashboard")
+        .get("/api/admin/dashboard")
         .set(getAuthHeaders(userToken))
         .expect(403);
 
@@ -667,10 +669,10 @@ describe("Admin API_ENDPOINTS", () => {
 
     test("should allow admin access to all routes", async () => {
       const routes = [
-        "/api/admins/dashboard",
-        "/api/admins/users",
-        "/api/admins/bookings",
-        "/api/admins/professionals",
+        "/api/admin/dashboard",
+        "/api/admin/users",
+        "/api/admin/bookings",
+        "/api/admin/professionals",
       ];
 
       for (const route of routes) {
@@ -686,7 +688,7 @@ describe("Admin API_ENDPOINTS", () => {
   describe("Error Handling", () => {
     test("should handle invalid ObjectId in URL params", async () => {
       const response = await request(app)
-        .get("/api/admins/users/invalid-id")
+        .get("/api/admin/users/invalid-id")
         .set(getAuthHeaders(adminToken))
         .expect(400);
 
@@ -703,7 +705,7 @@ describe("Admin API_ENDPOINTS", () => {
       };
 
       const response = await request(app)
-        .post("/api/admins/users")
+        .post("/api/admin/users")
         .set(getAuthHeaders(adminToken))
         .send(userData)
         .expect(400);

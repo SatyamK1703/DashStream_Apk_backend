@@ -120,6 +120,181 @@ export const getDashboardStats = async (req, res, next) => {
       bookingsByDay = [];
     }
 
+    // Enhanced Analytics: Revenue by Service Category
+    let revenueByCategory = [];
+    try {
+      revenueByCategory = await Booking.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, // Last 30 days
+          },
+        },
+        {
+          $lookup: {
+            from: "services",
+            localField: "services.serviceId",
+            foreignField: "_id",
+            as: "serviceDetails",
+          },
+        },
+        { $unwind: "$serviceDetails" },
+        {
+          $group: {
+            _id: "$serviceDetails.category",
+            revenue: { $sum: "$totalAmount" },
+            bookings: { $sum: 1 },
+          },
+        },
+        { $sort: { revenue: -1 } },
+        { $limit: 10 },
+      ]);
+    } catch (error) {
+      console.error("Error fetching revenue by category:", error.message);
+      revenueByCategory = [];
+    }
+
+    // Enhanced Analytics: Professional KPIs
+    let professionalKPIs = [];
+    try {
+      professionalKPIs = await Booking.aggregate([
+        {
+          $match: {
+            professional: { $ne: null },
+            createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, // Last 30 days
+          },
+        },
+        {
+          $group: {
+            _id: "$professional",
+            totalBookings: { $sum: 1 },
+            completedBookings: {
+              $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+            },
+            totalRevenue: { $sum: "$totalAmount" },
+            averageRating: { $avg: "$rating" },
+            totalRating: { $sum: { $ifNull: ["$rating", 0] } },
+            ratedBookings: {
+              $sum: { $cond: [{ $ne: ["$rating", null] }, 1, 0] },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "professional",
+          },
+        },
+        { $unwind: "$professional" },
+        {
+          $project: {
+            _id: 1,
+            name: "$professional.name",
+            totalBookings: 1,
+            completedBookings: 1,
+            totalRevenue: 1,
+            completionRate: {
+              $multiply: [
+                { $divide: ["$completedBookings", "$totalBookings"] },
+                100,
+              ],
+            },
+            averageRating: {
+              $cond: {
+                if: { $gt: ["$ratedBookings", 0] },
+                then: { $divide: ["$totalRating", "$ratedBookings"] },
+                else: 0,
+              },
+            },
+          },
+        },
+        { $sort: { totalRevenue: -1 } },
+        { $limit: 10 },
+      ]);
+    } catch (error) {
+      console.error("Error fetching professional KPIs:", error.message);
+      professionalKPIs = [];
+    }
+
+    // Enhanced Analytics: Customer Retention Rates
+    let customerRetention = {};
+    try {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+
+      // Total customers in last 30 days
+      const recentCustomers = await Booking.distinct("customer", {
+        createdAt: { $gte: thirtyDaysAgo },
+      });
+
+      // Customers who had bookings in both last 30 days and previous 30 days
+      const retainedCustomers = await Booking.distinct("customer", {
+        createdAt: { $gte: thirtyDaysAgo },
+        customer: {
+          $in: await Booking.distinct("customer", {
+            createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo },
+          }),
+        },
+      });
+
+      customerRetention = {
+        totalRecentCustomers: recentCustomers.length,
+        retainedCustomers: retainedCustomers.length,
+        retentionRate: recentCustomers.length > 0
+          ? (retainedCustomers.length / recentCustomers.length) * 100
+          : 0,
+      };
+    } catch (error) {
+      console.error("Error calculating customer retention:", error.message);
+      customerRetention = {
+        totalRecentCustomers: 0,
+        retainedCustomers: 0,
+        retentionRate: 0,
+      };
+    }
+
+    // Enhanced Analytics: Geographic Distribution
+    let geographicDistribution = [];
+    try {
+      geographicDistribution = await Booking.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, // Last 30 days
+          },
+        },
+        {
+          $group: {
+            _id: {
+              city: "$location.city",
+              state: "$location.state",
+            },
+            bookings: { $sum: 1 },
+            revenue: { $sum: "$totalAmount" },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            location: {
+              $concat: [
+                { $ifNull: ["$_id.city", "Unknown"] },
+                ", ",
+                { $ifNull: ["$_id.state", "Unknown"] },
+              ],
+            },
+            bookings: 1,
+            revenue: 1,
+          },
+        },
+        { $sort: { bookings: -1 } },
+        { $limit: 10 },
+      ]);
+    } catch (error) {
+      console.error("Error fetching geographic distribution:", error.message);
+      geographicDistribution = [];
+    }
+
     // Format chart data
     const dailyChartData = {
       labels: last7Days.map((date) => date.split("-")[2]), // Just the day
@@ -246,6 +421,25 @@ export const getDashboardStats = async (req, res, next) => {
             weekly: monthlyRevenueData, // Simplified for now
             monthly: monthlyRevenueData,
           },
+        },
+        // Enhanced Analytics
+        analytics: {
+          revenueByCategory: revenueByCategory.map((item) => ({
+            category: item._id || "Uncategorized",
+            revenue: item.revenue,
+            bookings: item.bookings,
+          })),
+          professionalKPIs: professionalKPIs.map((kpi) => ({
+            id: kpi._id,
+            name: kpi.name,
+            totalBookings: kpi.totalBookings,
+            completedBookings: kpi.completedBookings,
+            completionRate: Math.round(kpi.completionRate * 100) / 100,
+            totalRevenue: kpi.totalRevenue,
+            averageRating: Math.round(kpi.averageRating * 100) / 100,
+          })),
+          customerRetention,
+          geographicDistribution,
         },
       },
       "Dashboard stats retrieved successfully"
@@ -407,7 +601,8 @@ export const createUser = async (req, res, next) => {
         phone: user.phone,
         role: user.role,
       },
-      "User created successfully"
+      "User created successfully",
+      201
     );
   } catch (error) {
     next(error);
@@ -881,7 +1076,8 @@ export const createProfessional = async (req, res, next) => {
         status: professional.status,
         professionalInfo: professional.professionalInfo,
       },
-      "Professional created successfully"
+      "Professional created successfully",
+      201
     );
   } catch (error) {
     console.error("Create professional error:", error);
@@ -1529,5 +1725,160 @@ export const deleteService = async (req, res) => {
   } catch (error) {
     console.error("Delete service error:", error);
     res.sendError("Failed to delete service");
+  }
+};
+
+// ✅ Bulk Operations
+
+// Bulk update user status
+export const bulkUpdateUserStatus = async (req, res) => {
+  try {
+    const { userIds, status } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.sendError("User IDs array is required", 400);
+    }
+
+    if (!status || !['active', 'inactive', 'blocked'].includes(status)) {
+      return res.sendError("Valid status is required (active, inactive, blocked)", 400);
+    }
+
+    const result = await User.updateMany(
+      { _id: { $in: userIds } },
+      { status }
+    );
+
+    res.sendSuccess({
+      updated: result.modifiedCount,
+      total: userIds.length
+    }, `Successfully updated ${result.modifiedCount} users`);
+  } catch (error) {
+    console.error("Bulk update user status error:", error);
+    res.sendError("Failed to bulk update user status");
+  }
+};
+
+// Bulk assign professional to bookings
+export const bulkAssignProfessional = async (req, res) => {
+  try {
+    const { bookingIds, professionalId } = req.body;
+
+    if (!bookingIds || !Array.isArray(bookingIds) || bookingIds.length === 0) {
+      return res.sendError("Booking IDs array is required", 400);
+    }
+
+    if (!professionalId) {
+      return res.sendError("Professional ID is required", 400);
+    }
+
+    // Verify professional exists
+    const professional = await User.findOne({
+      _id: professionalId,
+      role: "professional"
+    });
+
+    if (!professional) {
+      return res.sendError("Professional not found", 404);
+    }
+
+    const result = await Booking.updateMany(
+      { _id: { $in: bookingIds }, status: { $in: ['pending', 'confirmed'] } },
+      {
+        professional: professionalId,
+        status: 'confirmed'
+      }
+    );
+
+    res.sendSuccess({
+      updated: result.modifiedCount,
+      total: bookingIds.length
+    }, `Successfully assigned professional to ${result.modifiedCount} bookings`);
+  } catch (error) {
+    console.error("Bulk assign professional error:", error);
+    res.sendError("Failed to bulk assign professional");
+  }
+};
+
+// Bulk update service prices
+export const bulkUpdateServicePrices = async (req, res) => {
+  try {
+    const { serviceUpdates } = req.body;
+
+    if (!serviceUpdates || !Array.isArray(serviceUpdates) || serviceUpdates.length === 0) {
+      return res.sendError("Service updates array is required", 400);
+    }
+
+    let updatedCount = 0;
+    const results = [];
+
+    for (const update of serviceUpdates) {
+      const { serviceId, price, discountPrice } = update;
+
+      if (!serviceId) continue;
+
+      const updateData = {};
+      if (price !== undefined) updateData.price = price;
+      if (discountPrice !== undefined) updateData.discountPrice = discountPrice;
+
+      const result = await Service.findByIdAndUpdate(serviceId, updateData, { new: true });
+      if (result) {
+        updatedCount++;
+        results.push({
+          serviceId,
+          title: result.title,
+          newPrice: result.price,
+          newDiscountPrice: result.discountPrice
+        });
+      }
+    }
+
+    res.sendSuccess({
+      updated: updatedCount,
+      total: serviceUpdates.length,
+      results
+    }, `Successfully updated ${updatedCount} services`);
+  } catch (error) {
+    console.error("Bulk update service prices error:", error);
+    res.sendError("Failed to bulk update service prices");
+  }
+};
+
+// Bulk verify professionals
+export const bulkVerifyProfessionals = async (req, res) => {
+  try {
+    const { professionalIds, isVerified, verificationNotes } = req.body;
+
+    if (!professionalIds || !Array.isArray(professionalIds) || professionalIds.length === 0) {
+      return res.sendError("Professional IDs array is required", 400);
+    }
+
+    if (typeof isVerified !== 'boolean') {
+      return res.sendError("isVerified boolean is required", 400);
+    }
+
+    const updateData = {
+      'professionalInfo.isVerified': isVerified,
+      'professionalInfo.verificationDate': new Date()
+    };
+
+    if (verificationNotes) {
+      updateData['professionalInfo.verificationNotes'] = verificationNotes;
+    }
+
+    const result = await User.updateMany(
+      {
+        _id: { $in: professionalIds },
+        role: "professional"
+      },
+      updateData
+    );
+
+    res.sendSuccess({
+      updated: result.modifiedCount,
+      total: professionalIds.length
+    }, `Successfully ${isVerified ? 'verified' : 'unverified'} ${result.modifiedCount} professionals`);
+  } catch (error) {
+    console.error("Bulk verify professionals error:", error);
+    res.sendError("Failed to bulk verify professionals");
   }
 };

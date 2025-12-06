@@ -23,6 +23,15 @@ const offerSchema = new mongoose.Schema(
       enum: ['percentage', 'fixed'],
       default: 'percentage'
     },
+    minOrderValue: {
+      type: Number,
+      default: 0,
+      min: [0, 'Minimum order value cannot be negative']
+    },
+    maxDiscountAmount: {
+      type: Number,
+      default: null
+    },
     validFrom: {
       type: Date,
       required: [true, 'Offer must have a valid from date'],

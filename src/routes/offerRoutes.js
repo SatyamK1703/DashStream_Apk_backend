@@ -10,6 +10,7 @@ import {
   activateOffer,
   deactivateOffer,
   useOffer,
+  applyOffer,
   validateOfferCode,
   getOfferStats,
   getOfferUsageDetails,
@@ -26,6 +27,9 @@ router.get('/active', getActiveOffers);
 router.get('/featured', getFeaturedOffers);
 router.get('/validate/:code', validateOfferCode);
 router.get('/:id', getOffer);
+
+// Apply offer route (requires authentication for user-specific validation)
+router.post('/apply', applyOffer);
 
 // Protected routes - require authentication
 router.use(protect);

@@ -3,6 +3,7 @@ import User from "../models/userModel.js";
 import Service from "../models/serviceModel.js";
 import PaymentMethod from "../models/paymentMethodModel.js";
 import Notification from "../models/notificationModel.js";
+import Offer from "../models/offerModel.js";
 import { asyncHandler, AppError } from "../middleware/errorMiddleware.js";
 
 import { sendBookingNotification } from '../services/notificationService.js';
@@ -55,13 +56,37 @@ export const createBooking = asyncHandler(async (req, res, next) => {
     estimatedDuration,
   };
 
+  // Handle promo code if provided
+  if (otherBookingData.promoCode && otherBookingData.promoOfferId) {
+    const offer = await Offer.findById(otherBookingData.promoOfferId);
+    if (offer && offer.isValid) {
+      // Validate the promo code can still be used
+      const canUse = await Offer.canUserUseOffer(offer._id, req.user.id);
+      if (canUse) {
+        // Use the offer
+        await offer.useOffer(req.user.id);
+      } else {
+        // If promo code can't be used, remove it from booking data
+        delete otherBookingData.promoCode;
+        delete otherBookingData.promoOfferId;
+        delete otherBookingData.promoDiscount;
+      }
+    } else {
+      // If offer is invalid, remove promo data
+      delete otherBookingData.promoCode;
+      delete otherBookingData.promoOfferId;
+      delete otherBookingData.promoDiscount;
+    }
+  }
+
   // Create booking
   const newBooking = await Booking.create(bookingData);
 
   // Populate customer and services details for the response
   const populatedBooking = await Booking.findById(newBooking._id)
     .populate("customer", "name phone profileImage")
-    .populate("services.serviceId", "title price duration image");
+    .populate("services.serviceId", "title price duration image")
+    .populate("promoOfferId", "title offerCode discount discountType");
 
   // Send notification
   await sendBookingNotification(populatedBooking, 'created');

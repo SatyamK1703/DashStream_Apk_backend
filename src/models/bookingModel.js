@@ -69,6 +69,10 @@ const bookingSchema = new Schema(
     },
     paymentId: { type: Schema.Types.ObjectId, ref: "Payment" },
     totalAmount: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
+    promoCode: { type: String },
+    promoOfferId: { type: Schema.Types.ObjectId, ref: "Offer" },
+    promoDiscount: { type: Number, default: 0 },
     estimatedDuration: { type: Number, default: 0 },
     notes: { type: String },
     rating: {

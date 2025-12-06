@@ -28,6 +28,11 @@ import {
   createService,
   updateService,
   deleteService,
+  // Bulk operations
+  bulkUpdateUserStatus,
+  bulkAssignProfessional,
+  bulkUpdateServicePrices,
+  bulkVerifyProfessionals,
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -125,5 +130,11 @@ router
   .get(getServiceById)
   .patch(updateService)
   .delete(deleteService);
+
+// -------------------- Bulk Operations --------------------
+router.post("/bulk/users/status", bulkUpdateUserStatus);
+router.post("/bulk/bookings/assign-professional", bulkAssignProfessional);
+router.post("/bulk/services/prices", bulkUpdateServicePrices);
+router.post("/bulk/professionals/verify", bulkVerifyProfessionals);
 
 export default router;
