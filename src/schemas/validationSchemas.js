@@ -606,3 +606,29 @@ export const membershipSchemas = {
   })
 };
 
+// Testimonial validation schemas
+export const testimonialSchemas = {
+  createTestimonial: Joi.object({
+    name: Joi.string()
+      .trim()
+      .min(1)
+      .max(100)
+      .required()
+      .messages({
+        'string.empty': 'Name cannot be empty',
+        'string.min': 'Name must be at least 1 character',
+        'string.max': 'Name cannot exceed 100 characters',
+        'any.required': 'Name is required'
+      }),
+    instagramUrl: Joi.string()
+      .trim()
+      .pattern(/^https?:\/\/(www\.)?instagram\.com\//)
+      .required()
+      .messages({
+        'string.pattern.base': 'Please enter a valid Instagram URL',
+        'any.required': 'Instagram URL is required'
+      })
+  })
+};
+
+

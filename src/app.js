@@ -37,6 +37,7 @@ import quickFixRoutes from "./routes/quickFixes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import serviceAreaRoutes from "./routes/serviceAreaRoutes.js";
 import instagramRoutes from "./routes/instagramRoutes.js";
+import testimonialRoutes from "./routes/testimonialRoutes.js";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorMiddleware.js";
@@ -150,6 +151,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/quick-fixes", quickFixRoutes);
 app.use("/api/service-areas", serviceAreaRoutes);
 app.use("/api/instagram", instagramRoutes);
+app.use("/api/testimonials", testimonialRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
