@@ -265,13 +265,37 @@ export const verifyWebhookSignature = (signature, body) => {
 export const processWebhookEvent = async (event) => {
   try {
     // Basic payload normalization
-    const eventId = event?.id || `${event?.account_id}_${event?.created_at}`;
+    // Razorpay webhook structure: { entity, account_id, event, contains, payload, created_at }
+    // The 'id' field doesn't exist in Razorpay webhooks - we need to create a unique identifier
     const eventType = event?.event;
     const payload = event?.payload ?? {};
     const createdAt = event?.created_at;
+    const accountId = event?.account_id;
+    
+    // Extract payment/order IDs to create a unique event identifier
+    const orderEntity = payload.order?.entity;
+    const paymentEntity = payload.payment?.entity;
+    const paymentLinkEntity = payload.payment_link?.entity;
+    
+    // Create unique eventId from available data
+    const paymentId = paymentEntity?.id || paymentLinkEntity?.payments?.[0]?.payment_id;
+    const orderId = orderEntity?.id || paymentEntity?.order_id;
+    const eventId = paymentId 
+      ? `${accountId}_${eventType}_${paymentId}` 
+      : `${accountId}_${eventType}_${orderId}_${createdAt}`;
 
-    if (!eventId || !eventType) {
-      throw new Error(`Invalid webhook event: missing required fields 'id' and/or 'event'. Received: ${JSON.stringify(event).substring(0, 200)}`);
+    console.log("Processing webhook event:", {
+      eventId,
+      eventType,
+      accountId,
+      createdAt,
+      orderId,
+      paymentId: paymentEntity?.id,
+      paymentLinkId: paymentLinkEntity?.id
+    });
+
+    if (!eventType) {
+      throw new Error(`Invalid webhook event: missing 'event' field. Received: ${JSON.stringify(event).substring(0, 200)}`);
     }
 
     // Security: Check if webhook event is not too old (prevent replay attacks)
@@ -288,26 +312,49 @@ export const processWebhookEvent = async (event) => {
       }
     }
 
-    // Try to find order/payment id from payload
-    const orderEntity = payload.order?.entity;
-    const paymentEntity = payload.payment?.entity;
-    const orderId =
-      orderEntity?.id || paymentEntity?.order_id || paymentEntity?.id;
+    // For order.paid events, the order info is directly in payload.order.entity
+    // For payment events, order_id is in payment.entity.order_id
+    // For payment_link.paid events, the payment info is in payload.payment_link.entity
+    let finalOrderId = orderId;
 
-    if (!orderId) {
+    // Also check if this is an order.paid event with payments array
+    if (!finalOrderId && orderEntity?.payments?.items?.length > 0) {
+      finalOrderId = orderEntity.id;
+    }
+    
+    // For payment_link.paid events, get order_id from the payment
+    if (!finalOrderId && paymentLinkEntity?.payments?.[0]?.order_id) {
+      finalOrderId = paymentLinkEntity.payments[0].order_id;
+    }
+
+    console.log("Webhook payload parsing:", {
+      eventType,
+      finalOrderId,
+      orderEntityId: orderEntity?.id,
+      paymentEntityOrderId: paymentEntity?.order_id,
+      paymentLinkEntityId: paymentLinkEntity?.id,
+      hasPaymentsArray: !!orderEntity?.payments?.items?.length
+    });
+
+    if (!finalOrderId) {
       // For some events, order id may be in different places
       // Attempt to find by searching for any razorpay order id inside payload
       const maybeOrderId = JSON.stringify(payload).match(/order_[a-zA-Z0-9]+/);
-      if (maybeOrderId) event.orderId = maybeOrderId[0];
+      if (maybeOrderId) finalOrderId = maybeOrderId[0];
     }
 
-    // Find the payment record by razorpayOrderId OR by razorpayPaymentId
+    // Find the payment record by razorpayOrderId OR by razorpayPaymentId OR by razorpayPaymentLinkId
     let paymentRecord = null;
-    if (orderId)
-      paymentRecord = await Payment.findOne({ razorpayOrderId: orderId });
+    if (finalOrderId)
+      paymentRecord = await Payment.findOne({ razorpayOrderId: finalOrderId });
     if (!paymentRecord && paymentEntity?.id)
       paymentRecord = await Payment.findOne({
         razorpayPaymentId: paymentEntity.id,
+      });
+    // Also try by payment link ID
+    if (!paymentRecord && paymentLinkEntity?.id)
+      paymentRecord = await Payment.findOne({
+        razorpayPaymentLinkId: paymentLinkEntity.id,
       });
 
     // Additional fallback: try to find by bookingId from notes
@@ -316,29 +363,43 @@ export const processWebhookEvent = async (event) => {
         bookingId: paymentEntity.notes.bookingId
       });
     }
+    // Try payment_link notes as well
+    if (!paymentRecord && paymentLinkEntity?.notes?.bookingId) {
+      paymentRecord = await Payment.findOne({
+        bookingId: paymentLinkEntity.notes.bookingId
+      });
+    }
+
+    console.log("Payment record lookup:", {
+      finalOrderId,
+      paymentEntityId: paymentEntity?.id,
+      paymentLinkEntityId: paymentLinkEntity?.id,
+      bookingIdFromNotes: paymentEntity?.notes?.bookingId || paymentLinkEntity?.notes?.bookingId,
+      paymentRecordFound: !!paymentRecord
+    });
 
     // Check for Membership record if no Payment record found
     let membershipRecord = null;
     if (!paymentRecord) {
       // First try to find by orderId with various formats
-      if (orderId) {
-        console.log(`Looking for membership with orderId: ${orderId}`);
+      if (finalOrderId) {
+        console.log(`Looking for membership with orderId: ${finalOrderId}`);
 
         // Try to find membership with the orderId as-is
-        membershipRecord = await Membership.findOne({ orderId });
-        console.log(`Found membership with exact orderId ${orderId}: ${!!membershipRecord}`);
+        membershipRecord = await Membership.findOne({ orderId: finalOrderId });
+        console.log(`Found membership with exact orderId ${finalOrderId}: ${!!membershipRecord}`);
 
         // If not found and orderId starts with "order_", try without prefix
-        if (!membershipRecord && orderId.startsWith('order_')) {
-          const orderIdWithoutPrefix = orderId.substring(6); // Remove "order_" prefix
+        if (!membershipRecord && finalOrderId.startsWith('order_')) {
+          const orderIdWithoutPrefix = finalOrderId.substring(6); // Remove "order_" prefix
           console.log(`Trying orderId without prefix: ${orderIdWithoutPrefix}`);
           membershipRecord = await Membership.findOne({ orderId: orderIdWithoutPrefix });
           console.log(`Found membership with orderId ${orderIdWithoutPrefix}: ${!!membershipRecord}`);
         }
 
         // If not found and orderId doesn't start with "order_", try with prefix
-        if (!membershipRecord && !orderId.startsWith('order_')) {
-          const orderIdWithPrefix = `order_${orderId}`;
+        if (!membershipRecord && !finalOrderId.startsWith('order_')) {
+          const orderIdWithPrefix = `order_${finalOrderId}`;
           console.log(`Trying orderId with prefix: ${orderIdWithPrefix}`);
           membershipRecord = await Membership.findOne({ orderId: orderIdWithPrefix });
           console.log(`Found membership with orderId ${orderIdWithPrefix}: ${!!membershipRecord}`);
@@ -371,16 +432,26 @@ export const processWebhookEvent = async (event) => {
     }
 
     if (!paymentRecord && !membershipRecord) {
-      // If no record, log detailed info and return gracefully
+      // If no record, log detailed info and try to find any related payment records
+      const bookingIdFromNotes = paymentEntity?.notes?.bookingId || paymentLinkEntity?.notes?.bookingId || orderEntity?.notes?.bookingId;
+      
+      // Debug: Check what payment records exist
+      let debugPayments = [];
+      if (bookingIdFromNotes) {
+        debugPayments = await Payment.find({ bookingId: bookingIdFromNotes }).select('_id razorpayOrderId razorpayPaymentId razorpayPaymentLinkId status createdAt');
+      }
+      
       console.error(
-        `Payment record not found for webhook ${eventId}:`, {
-          orderId,
-          paymentId: paymentEntity?.id,
-          bookingIdFromNotes: paymentEntity?.notes?.bookingId,
-          eventType,
-          payload: JSON.stringify(payload).substring(0, 500)
-        }
-      );
+        `=== PAYMENT RECORD NOT FOUND ===`);
+      console.error(`Event ID: ${eventId}`);
+      console.error(`Final Order ID: ${finalOrderId}`);
+      console.error(`Payment Entity ID: ${paymentEntity?.id}`);
+      console.error(`Payment Link Entity ID: ${paymentLinkEntity?.id}`);
+      console.error(`Booking ID from notes: ${bookingIdFromNotes}`);
+      console.error(`Event type: ${eventType}`);
+      console.error(`Existing payments for this booking:`, JSON.stringify(debugPayments, null, 2));
+      console.error(`Full payload:`, JSON.stringify(payload, null, 2));
+      
       return null;
     }
 
@@ -398,7 +469,8 @@ export const processWebhookEvent = async (event) => {
     } else if (membershipRecord) {
       // For memberships found by userId/planId, we can't check eventId since we don't store webhook events
       // So we use simple idempotency based on status
-      alreadyProcessed = membershipRecord.status === 'active' && eventType === 'payment.captured';
+      alreadyProcessed = membershipRecord.status === 'active' && 
+        ['payment.captured', 'order.paid', 'payment_link.paid'].includes(eventType);
     }
     if (alreadyProcessed) {
       console.log(`Webhook event ${eventId} already processed for ${paymentRecord ? 'payment' : 'membership'} record`);
@@ -414,13 +486,29 @@ export const processWebhookEvent = async (event) => {
           paymentRecord.paymentDetails = paymentEntity;
           break;
         case "payment.captured":
+        case "order.paid":
+        case "payment_link.paid":
+          // All these events indicate successful payment - treat the same way
           paymentRecord.status = "captured";
           paymentRecord.razorpayPaymentId =
-            paymentEntity?.id || paymentRecord.razorpayPaymentId;
+            paymentEntity?.id || 
+            orderEntity?.payments?.items?.[0]?.id || 
+            paymentLinkEntity?.payments?.[0]?.payment_id ||
+            paymentRecord.razorpayPaymentId;
           paymentRecord.capturedAt = new Date();
-          await Booking.findByIdAndUpdate(paymentRecord.bookingId, {
-            paymentStatus: "paid",
-            paymentId: paymentRecord._id,
+          
+          // Update booking payment status
+          const bookingUpdateResult = await Booking.findByIdAndUpdate(
+            paymentRecord.bookingId, 
+            {
+              paymentStatus: "paid",
+              paymentId: paymentRecord._id,
+            },
+            { new: true }
+          );
+          console.log(`Payment captured for booking ${paymentRecord.bookingId}, booking update result:`, {
+            bookingFound: !!bookingUpdateResult,
+            newPaymentStatus: bookingUpdateResult?.paymentStatus
           });
           break;
         case "payment.failed":
@@ -443,6 +531,7 @@ export const processWebhookEvent = async (event) => {
           break;
         default:
           // Keep record of unknown events for audit
+          console.log(`Unhandled webhook event type: ${eventType}`);
           break;
       }
     }
@@ -451,8 +540,13 @@ export const processWebhookEvent = async (event) => {
     if (membershipRecord) {
       switch (eventType) {
         case "payment.captured":
+        case "order.paid":
+        case "payment_link.paid":
+          // All these events indicate successful payment - activate membership
           membershipRecord.status = "active";
-          membershipRecord.paymentId = paymentEntity?.id;
+          membershipRecord.paymentId = paymentEntity?.id || 
+            orderEntity?.payments?.items?.[0]?.id || 
+            paymentLinkEntity?.payments?.[0]?.payment_id;
           membershipRecord.validUntil = new Date(new Date().setMonth(new Date().getMonth() + 1));
           await membershipRecord.save();
           console.log(`Membership activated for user ${membershipRecord.userId}, plan: ${membershipRecord.planId}`);
@@ -501,12 +595,12 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     req.headers["x-razorpay-signature".toLowerCase()];
   const rawBody = req.rawBody || (req.body ? JSON.stringify(req.body) : "");
 
-  console.log("Webhook received:", {
-    signature: signature ? "present" : "missing",
-    bodyLength: rawBody.length,
-    eventType: req.body?.event,
-    eventId: req.body?.id
-  });
+  // Log the full payload for debugging
+  console.log("=== WEBHOOK RECEIVED ===");
+  console.log("Signature present:", !!signature);
+  console.log("Body length:", rawBody.length);
+  console.log("Event type:", req.body?.event);
+  console.log("Full payload:", JSON.stringify(req.body, null, 2));
 
   const verified = verifyWebhookSignature(signature, rawBody);
   if (!verified) {
